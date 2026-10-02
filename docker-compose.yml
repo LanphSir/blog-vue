@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      BLOG_SECRET_KEY: ${BLOG_SECRET_KEY:-change-me-in-production}
+      BLOG_INIT_ADMIN_USERNAME: ${BLOG_INIT_ADMIN_USERNAME:-admin}
+      BLOG_INIT_ADMIN_PASSWORD: ${BLOG_INIT_ADMIN_PASSWORD:-admin123}
+      BLOG_DEBUG: "false"
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"

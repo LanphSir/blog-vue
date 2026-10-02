@@ -1,0 +1,46 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Backend ----
+backend/data/*.db
+backend/data/*.db-journal
+backend/logs/
+backend/uploads/
+backend/.env
+backend/.env.local
+
+# ---- Node ----
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm/
+.eslintcache
+.vite/
+
+# ---- Editor / OS ----
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.swo
+
+# ---- Env ----
+.env
+.env.*
+!.env.example
+
+# ---- Misc ----
+logs/
+*.log
