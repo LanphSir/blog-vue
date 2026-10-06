@@ -180,3 +180,10 @@ a {
     transition: none;
   }
 }
+/* ==高亮== (markdown-it-mark) */
+mark {
+  background: color-mix(in srgb, var(--blog-primary) 30%, transparent);
+  color: inherit;
+  padding: 0 3px;
+  border-radius: 3px;
+}

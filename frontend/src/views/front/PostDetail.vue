@@ -16,7 +16,17 @@
           <span class="spacer" />
           <button class="share-btn" @click="copyLink">复制链接</button>
         </div>
-        <div class="markdown-body" v-html="html" ref="articleRef" />
+
+        <div class="md-preview-wrap">
+          <MdPreview
+            :id="previewId"
+            :model-value="post.content"
+            :theme="theme"
+            preview-theme="github"
+            code-theme="atom"
+            :language="'zh-CN'"
+          />
+        </div>
 
         <nav v-if="neighbors.previous || neighbors.next" class="neighbors">
           <router-link
@@ -39,13 +49,13 @@
         </nav>
       </article>
 
-      <aside v-if="toc.length" class="card toc">
+      <aside class="card toc">
         <h3>目录</h3>
-        <ul>
-          <li v-for="item in toc" :key="item.id" :class="['lvl-' + item.depth, { active: item.id === activeHeading }]">
-            <a :href="'#' + item.id" @click.prevent="scrollTo(item.id)">{{ item.text }}</a>
-          </li>
-        </ul>
+        <MdCatalog
+          :editor-id="previewId"
+          :theme="theme"
+          :scroll-element="scrollElement"
+        />
       </aside>
     </div>
   </div>
@@ -56,29 +66,37 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import 'highlight.js/styles/github-dark.min.css'
+import 'md-editor-v3/lib/preview.css'
 import ColoredTag from '@/components/ColoredTag.vue'
-import { extractHeadingsAsync, useMarkdown } from '@/composables/useMarkdown'
+import { setupMdEditor } from '@/composables/useMdEditor'
 import { getPostBySlug, getPostNeighbors } from '@/api/posts'
 import { useConfigStore } from '@/stores/config'
+import { useThemeStore } from '@/stores/theme'
+
+const MdPreview = defineAsyncComponent(() => setupMdEditor().then((m) => m.MdPreview))
+const MdCatalog = defineAsyncComponent(() => setupMdEditor().then((m) => m.MdCatalog))
+
+const previewId = 'blog-post-preview'
 
 const route = useRoute()
 const configStore = useConfigStore()
+const themeStore = useThemeStore()
 const post = ref(null)
 const loading = ref(true)
 const neighbors = ref({ previous: null, next: null })
-const articleRef = ref(null)
-const activeHeading = ref(null)
-const toc = ref([])
 
-const content = computed(() => post.value?.content || '')
-const { html } = useMarkdown(content)
+const theme = computed(() => (themeStore.isDark ? 'dark' : 'light'))
+const scrollElement = computed(() => document.documentElement)
 
 const authorName = computed(() => post.value?.author || configStore.configs.site_author || '站长')
 const avatarText = computed(() => authorName.value.slice(0, 1).toUpperCase())
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString('zh-CN') : ''
+}
 
 async function copyLink() {
   const url = window.location.href
@@ -90,27 +108,8 @@ async function copyLink() {
   }
 }
 
-function scrollTo(id) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-function onScroll() {
-  if (!articleRef.value) return
-  const headings = articleRef.value.querySelectorAll('h1, h2, h3')
-  let current = activeHeading.value
-  for (const h of headings) {
-    if (h.getBoundingClientRect().top <= 80) current = h.id
-  }
-  activeHeading.value = current
-}
-
-function formatDate(value) {
-  return value ? new Date(value).toLocaleString('zh-CN') : ''
-}
-
 async function load() {
   loading.value = true
-  activeHeading.value = null
   try {
     const slug = route.params.slug
     const [detailRes, neighborsRes] = await Promise.all([
@@ -119,13 +118,6 @@ async function load() {
     ])
     post.value = detailRes.data
     neighbors.value = neighborsRes.data
-    toc.value = await extractHeadingsAsync(post.value.content)
-    await nextTick()
-    const headings = articleRef.value?.querySelectorAll('h1, h2, h3')
-    headings?.forEach((h, i) => {
-      h.id = h.id || toc.value[i]?.id
-    })
-    addCodeCopyButtons()
   } catch {
     post.value = null
   } finally {
@@ -133,35 +125,7 @@ async function load() {
   }
 }
 
-function addCodeCopyButtons() {
-  const blocks = articleRef.value?.querySelectorAll('pre')
-  blocks?.forEach((pre) => {
-    if (pre.querySelector('.code-copy')) return
-    const lang = pre.querySelector('code')?.className.match(/language-(\w+)/)?.[1]
-    pre.dataset.lang = lang || 'code'
-    const btn = document.createElement('button')
-    btn.className = 'code-copy'
-    btn.textContent = '复制'
-    btn.addEventListener('click', () => {
-      navigator.clipboard
-        ?.writeText(pre.textContent || '')
-        .then(() => {
-          btn.textContent = '已复制'
-          setTimeout(() => (btn.textContent = '复制'), 1500)
-        })
-        .catch(() => {})
-    })
-    pre.appendChild(btn)
-  })
-}
-
-onMounted(() => {
-  load()
-  window.addEventListener('scroll', onScroll, { passive: true })
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('scroll', onScroll)
-})
+onMounted(load)
 watch(() => route.params.slug, load)
 </script>
 
@@ -236,6 +200,15 @@ watch(() => route.params.slug, load)
   border-color: var(--blog-primary);
 }
 
+.md-preview-wrap {
+  margin-top: 16px;
+}
+
+.md-preview-wrap :deep(.md-editor-preview-wrapper) {
+  background: transparent;
+  padding: 0;
+}
+
 .toc {
   position: sticky;
   top: 80px;
@@ -249,28 +222,9 @@ watch(() => route.params.slug, load)
   margin-bottom: 10px;
 }
 
-.toc ul {
-  list-style: none;
-}
-
-.toc li {
-  margin-bottom: 6px;
-}
-
-.toc li.lvl-2 {
-  padding-left: 12px;
-}
-
-.toc li.lvl-3 {
-  padding-left: 24px;
-}
-
-.toc a {
-  color: var(--blog-text-secondary);
-}
-
-.toc li.active a {
-  color: var(--blog-primary);
+.toc :deep(.md-editor-catalog) {
+  max-height: 62vh;
+  overflow-y: auto;
 }
 
 .neighbors {

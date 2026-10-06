@@ -20,8 +20,8 @@ export default defineConfig({
           if (id.includes('node_modules/vue') || id.includes('node_modules/pinia') || id.includes('node_modules/vue-router')) {
             return 'vendor-vue'
           }
-          if (id.includes('node_modules/marked') || id.includes('node_modules/highlight.js')) {
-            return 'vendor-markdown'
+          if (id.includes('node_modules/md-editor-v3')) {
+            return 'vendor-md-editor'
           }
         },
       },

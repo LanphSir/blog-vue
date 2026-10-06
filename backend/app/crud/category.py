@@ -18,14 +18,23 @@ async def list_tags(db: AsyncSession) -> list[Tag]:
 
 async def count_posts_by_category(db: AsyncSession) -> dict[int, int]:
     rows = (
-        await db.execute(select(Post.category_id, func.count(Post.id)).group_by(Post.category_id))
+        await db.execute(
+            select(Post.category_id, func.count(Post.id))
+            .where(Post.deleted_at.is_(None))
+            .group_by(Post.category_id)
+        )
     ).all()
     return {category_id: count for category_id, count in rows if category_id is not None}
 
 
 async def count_posts_by_tag(db: AsyncSession) -> dict[int, int]:
     rows = (
-        await db.execute(select(Tag.id, func.count(Tag.id)).join(Tag.posts).group_by(Tag.id))
+        await db.execute(
+            select(Tag.id, func.count(Tag.id))
+            .join(Tag.posts)
+            .where(Post.deleted_at.is_(None))
+            .group_by(Tag.id)
+        )
     ).all()
     return dict(rows)
 

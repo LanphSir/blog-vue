@@ -1,7 +1,15 @@
 <template>
   <div>
+    <div class="dashboard-head">
+      <h3 class="head-title">数据概览</h3>
+      <el-button size="small" :loading="refreshing" @click="load">
+        <el-icon class="btn-icon"><Refresh /></el-icon>
+        刷新
+      </el-button>
+    </div>
+
     <el-row :gutter="16">
-      <el-col v-for="card in stats" :key="card.label" :span="6">
+      <el-col v-for="card in statCards" :key="card.label" :span="6">
         <el-card class="stat-card">
           <div class="stat-value">{{ card.value }}</div>
           <div class="stat-label">{{ card.label }}</div>
@@ -10,7 +18,7 @@
     </el-row>
 
     <el-card class="recent-card" header="最近发布">
-      <el-table :data="recentPosts" stripe>
+      <el-table :data="recentPosts" stripe v-loading="loading">
         <el-table-column prop="title" label="标题" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
@@ -31,34 +39,56 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { adminGetPosts } from '@/api/posts'
-import { getCategories, getTags } from '@/api/categories'
+import { getSiteStats } from '@/api/site'
 
 const recentPosts = ref([])
-const categoryCount = ref(0)
-const tagCount = ref(0)
+const stats = ref({ post_count: 0, category_count: 0, tag_count: 0, total_views: 0, days_since_launch: 0 })
+const loading = ref(false)
+const refreshing = ref(false)
 
-const stats = computed(() => [
-  { label: '文章总数', value: recentPosts.value.length },
-  { label: '分类数', value: categoryCount.value },
-  { label: '标签数', value: tagCount.value },
-  { label: '总阅读量', value: recentPosts.value.reduce((s, p) => s + p.view_count, 0) },
+const statCards = computed(() => [
+  { label: '文章总数', value: stats.value.post_count },
+  { label: '分类数', value: stats.value.category_count },
+  { label: '标签数', value: stats.value.tag_count },
+  { label: '总阅读量', value: stats.value.total_views.toLocaleString() },
 ])
 
-onMounted(async () => {
-  const [postsRes, catRes, tagRes] = await Promise.all([
-    adminGetPosts({ page: 1, page_size: 5 }),
-    getCategories(),
-    getTags(),
-  ])
-  recentPosts.value = postsRes.data.items
-  categoryCount.value = catRes.data.length
-  tagCount.value = tagRes.data.length
-})
+async function load() {
+  refreshing.value = true
+  try {
+    const [postsRes, statsRes] = await Promise.all([
+      adminGetPosts({ page: 1, page_size: 5 }),
+      getSiteStats(),
+    ])
+    recentPosts.value = postsRes.data.items
+    stats.value = statsRes.data
+  } finally {
+    refreshing.value = false
+  }
+}
+
+onMounted(load)
 </script>
 
 <style scoped>
+.dashboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.head-title {
+  font-size: 16px;
+}
+
+.btn-icon {
+  margin-right: 2px;
+}
+
 .stat-card {
   text-align: center;
 }

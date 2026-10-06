@@ -2,7 +2,7 @@
   <el-card>
     <el-button type="primary" @click="openDialog()" class="add-btn">新增分类</el-button>
 
-    <el-table :data="flatCategories" stripe v-loading="loading" row-key="id" default-expand-all :tree-props="{ children: 'children' }">
+    <el-table :data="tree" stripe v-loading="loading" row-key="id" default-expand-all :tree-props="{ children: 'children' }">
       <el-table-column prop="name" label="名称" min-width="180">
         <template #default="{ row }">
           <span class="tree-name" :style="row.color ? { color: row.color } : {}">{{ row.name }}</span>
@@ -86,18 +86,6 @@ const form = ref({ id: null, name: '', slug: '', color: null, parent_id: null, s
 
 const rootCategories = computed(() => tree.value)
 
-const flatCategories = computed(() => {
-  const result = []
-  const walk = (nodes) => {
-    for (const node of nodes) {
-      result.push(node)
-      if (node.children?.length) walk(node.children)
-    }
-  }
-  walk(tree.value)
-  return result
-})
-
 async function load() {
   loading.value = true
   try {
@@ -110,11 +98,30 @@ async function load() {
 
 function openDialog(row) {
   if (row) {
-    form.value = { ...row, parent_id: row.parent_id ?? null }
+    form.value = {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      color: row.color ?? null,
+      parent_id: row.parent_id ?? null,
+      sort_order: row.sort_order ?? 0,
+      visible: row.visible ?? true,
+    }
   } else {
     form.value = { id: null, name: '', slug: '', color: null, parent_id: null, sort_order: tree.value.length, visible: true }
   }
   dialogVisible.value = true
+}
+
+function buildPayload() {
+  return {
+    name: form.value.name,
+    slug: form.value.slug,
+    color: form.value.color || null,
+    parent_id: form.value.parent_id || null,
+    sort_order: form.value.sort_order || 0,
+    visible: form.value.visible,
+  }
 }
 
 async function handleSave() {
@@ -124,12 +131,10 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    const payload = { ...form.value }
-    if (payload.id) {
-      await adminUpdateCategory(payload.id, payload)
+    if (form.value.id) {
+      await adminUpdateCategory(form.value.id, buildPayload())
     } else {
-      delete payload.id
-      await adminCreateCategory(payload)
+      await adminCreateCategory(buildPayload())
     }
     ElMessage.success('已保存')
     if (form.value.id) {
@@ -138,6 +143,8 @@ async function handleSave() {
       form.value = { id: null, name: '', slug: '', color: null, parent_id: null, sort_order: tree.value.length, visible: true }
     }
     load()
+  } catch {
+    /* 错误提示已由拦截器处理 */
   } finally {
     saving.value = false
   }
@@ -152,12 +159,16 @@ async function updateSort(row) {
 }
 
 async function handleDelete(row) {
-  await ElMessageBox.confirm(`确认删除分类「${row.name}」？`, '提示', { type: 'warning' })
+  try {
+    await ElMessageBox.confirm(`确认删除分类「${row.name}」？`, '提示', { type: 'warning' })
+  } catch {
+    return
+  }
   try {
     await adminDeleteCategory(row.id)
     ElMessage.success('已删除')
-  } catch (e) {
-    ElMessage.warning(e.message || '删除失败')
+  } catch {
+    /* 删除被保护时，错误提示已由拦截器处理 */
   }
   load()
 }

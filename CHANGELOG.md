@@ -2,6 +2,40 @@
 
 本文件记录项目各阶段的功能开发与变更，按时间倒序排列。
 
+## [0.7.0] - 2026-10-06
+
+### 仪表盘修正与文章软删除
+
+- 后台仪表盘 `Dashboard.vue`：
+  - 统计数据改用真实 `GET /site/stats`（文章总数/分类数/标签数/总阅读量），此前从"最近 5 篇"误算
+  - 新增"刷新"按钮，随时拉取最新数据
+- 文章**软删除（回收站）**：
+  - `posts` 新增 `deleted_at` 字段（Alembic 迁移 `ddd6a85857d5`）
+  - 删除改为软删除：`POST/DELETE /admin/posts/{id}` 置 `deleted_at`，可 `POST /{id}/restore` 恢复，`DELETE /{id}/permanent` 彻底删除
+  - `GET /admin/posts?deleted=true` 查看回收站
+  - 前台公开列表/详情/上一篇下一篇、分类标签计数、站点统计均排除已删文章
+- 后台文章管理 `PostManage.vue`：新增"文章列表/回收站"切换，回收站支持恢复、彻底删除、清空（危险操作二次确认）
+- 测试：新增软删除全流程用例，共 14 个全部通过
+
+## [0.6.0] - 2026-10-02
+
+### 编辑器升级：集成 md-editor-v3
+
+- 后台文章编辑器 `MarkdownEditor.vue` 重写为 `md-editor-v3`（`MdEditor`）：
+  - **完整工具栏**（不再 `toolbarsExclude`）：加粗/标题/列表/代码/表格、图片裁剪、Mermaid、KaTeX、prettier 格式化、github、catalog、htmlPreview、保存、**内置全屏（页面全屏 + 浏览器全屏）**
+  - 全屏改用库内置实现（此前自定义全屏容器无法正确铺满）；`fullscreen` 依赖的 `screenfull` 已本地注册
+  - 代码高亮使用本地 `highlight.js/lib/common` 实例（离线可用，体积更小）
+  - 注册 `markdown-it-mark`：支持 `==高亮文字==` 语法（编辑器预览与前台文章页均生效，配套 `mark` 主题样式）
+  - **粘贴/拖拽/裁剪插图**：`onUploadImg` 接入现有 `POST /admin/upload`
+  - `onSave`（Ctrl+S）→ 保存；`onError` 上报扩展加载失败；保留"导入 .md 文件"与字数统计
+  - 主题随全站 `themeStore` 切换，预览主题 github、代码主题 atom、语言 zh-CN
+- 前台文章页 `PostDetail.vue` 改为 `MdPreview` + `MdCatalog`：
+  - 全站渲染统一（markdown-it），内置目录滚动高亮替代手写 TOC，代码块复制使用库内置能力
+- 新增 `composables/useMdEditor.js`：懒加载并注册 md-editor-v3 + highlight.js + screenfull 实例，供编辑器与预览复用
+- 依赖调整：新增 `md-editor-v3`、`screenfull`、`highlight.js`；移除 `marked`、`useMarkdown.js`
+- Vite 分包：`md-editor-v3` 独立 `vendor-md-editor` chunk（仅编辑页/详情页懒加载）
+- 全量验证：前端构建通过；后端未改动（pytest/ruff 回归通过）
+
 ## [0.5.0] - 2026-09-16
 
 ### 导航联动、侧边卡片、全站搜索、公告与编辑器升级

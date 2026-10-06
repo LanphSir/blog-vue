@@ -35,6 +35,7 @@ class Post(Base):
         DateTime, server_default=func.now(), onupdate=func.now()
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None, index=True)
 
     category = relationship("Category", back_populates="posts")
     tags = relationship("Tag", secondary=post_tags, back_populates="posts")

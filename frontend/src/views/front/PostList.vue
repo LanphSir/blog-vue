@@ -114,11 +114,20 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const keyword = ref('')
-const activeCategory = ref(route.query.category_id ? Number(route.query.category_id) : null)
-const activeTag = ref(null)
 const loading = ref(true)
 
 const roots = computed(() => tree.value)
+
+const activeCategory = computed(() => {
+  const cid = Number(route.query.category_id)
+  return Number.isFinite(cid) && cid > 0 ? cid : null
+})
+
+const activeTag = computed(() => {
+  const tid = Number(route.query.tag_id)
+  if (!Number.isFinite(tid) || tid <= 0) return null
+  return allTags.value.find((t) => t.id === tid) || null
+})
 
 const currentRoot = computed(() => {
   if (activeCategory.value === null) return null
@@ -151,37 +160,23 @@ async function load(p = 1) {
 }
 
 function pickCategory(id) {
-  activeCategory.value = id
-  activeTag.value = null
   router.replace({ query: { ...route.query, category_id: id || undefined } })
-  load(1)
 }
 
 function clearTag() {
-  activeTag.value = null
   router.replace({ query: { ...route.query, tag_id: undefined } })
-  load(1)
 }
 
 onMounted(async () => {
-  load()
   const [treeRes, tagRes] = await Promise.all([getCategoryTree(), getTags()])
   tree.value = treeRes.data
   allTags.value = tagRes.data
-  if (route.query.tag_id) {
-    activeTag.value = allTags.value.find((t) => t.id === Number(route.query.tag_id)) || null
-  }
+  load()
 })
 
 watch(
   () => route.query,
-  (query) => {
-    const catId = query.category_id ? Number(query.category_id) : null
-    if (catId !== activeCategory.value) activeCategory.value = catId
-    const tagId = query.tag_id ? Number(query.tag_id) : null
-    activeTag.value = tagId ? allTags.value.find((t) => t.id === tagId) || null : null
-    load(1)
-  },
+  () => load(1),
 )
 </script>
 

@@ -18,8 +18,14 @@ async def list_posts(
     category_id: int | list[int] | None = None,
     tag_id: int | None = None,
     keyword: str | None = None,
+    include_deleted: bool = False,
+    deleted_only: bool = False,
 ) -> tuple[list[Post], int]:
     query = select(Post)
+    if deleted_only:
+        query = query.where(Post.deleted_at.is_not(None))
+    elif not include_deleted:
+        query = query.where(Post.deleted_at.is_(None))
     if status:
         query = query.where(Post.status == status)
     if category_id:
@@ -41,12 +47,17 @@ async def list_posts(
 
 
 async def get_by_slug(db: AsyncSession, slug: str) -> Post | None:
-    result = await db.execute(select(Post).where(Post.slug == slug))
+    result = await db.execute(select(Post).where(Post.slug == slug, Post.deleted_at.is_(None)))
     return result.scalar_one_or_none()
 
 
 async def get_by_id(db: AsyncSession, post_id: int) -> Post | None:
     return await db.get(Post, post_id)
+
+
+async def get_by_id_not_deleted(db: AsyncSession, post_id: int) -> Post | None:
+    result = await db.execute(select(Post).where(Post.id == post_id, Post.deleted_at.is_(None)))
+    return result.scalar_one_or_none()
 
 
 async def create_post(db: AsyncSession, payload: PostCreate) -> Post:
@@ -65,7 +76,17 @@ async def update_post(db: AsyncSession, post: Post, payload: PostUpdate) -> Post
     return post
 
 
-async def delete_post(db: AsyncSession, post: Post) -> None:
+async def soft_delete_post(db: AsyncSession, post: Post) -> None:
+    post.deleted_at = datetime.now(UTC)
+    await db.flush()
+
+
+async def restore_post(db: AsyncSession, post: Post) -> None:
+    post.deleted_at = None
+    await db.flush()
+
+
+async def hard_delete_post(db: AsyncSession, post: Post) -> None:
     await db.delete(post)
 
 
@@ -79,13 +100,21 @@ async def get_neighbors(db: AsyncSession, post: Post) -> tuple[Post | None, Post
         return None, None
     prev_result = await db.execute(
         select(Post)
-        .where(Post.status == "published", Post.published_at < post.published_at)
+        .where(
+            Post.status == "published",
+            Post.deleted_at.is_(None),
+            Post.published_at < post.published_at,
+        )
         .order_by(Post.published_at.desc())
         .limit(1)
     )
     next_result = await db.execute(
         select(Post)
-        .where(Post.status == "published", Post.published_at > post.published_at)
+        .where(
+            Post.status == "published",
+            Post.deleted_at.is_(None),
+            Post.published_at > post.published_at,
+        )
         .order_by(Post.published_at.asc())
         .limit(1)
     )

@@ -2,10 +2,11 @@
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, DbDep
 from app.crud import category as category_crud
-from app.models.post import Category, Tag
+from app.models.post import Category, Post, Tag
 from app.schemas.category import (
     CategoryCreate,
     CategoryOut,
@@ -81,7 +82,13 @@ async def create_category(
 ) -> ApiResponse[CategoryOut]:
     category = Category(**payload.model_dump())
     db.add(category)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="分类名称或 Slug 已存在"
+        ) from None
     await db.refresh(category)
     return ok(CategoryOut.model_validate(category))
 
@@ -95,9 +102,15 @@ async def update_category(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="分类不存在")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(category, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="分类名称或 Slug 已存在"
+        ) from None
     await db.refresh(category)
-    return CategoryOut.model_validate(category)
+    return ok(CategoryOut.model_validate(category))
 
 
 @router.delete("/admin/categories/{category_id}", summary="删除分类")
@@ -111,6 +124,14 @@ async def delete_category(category_id: int, db: DbDep, _: CurrentUser) -> ApiRes
     if has_children > 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="该分类下存在子分类，无法删除"
+        )
+    post_count = (
+        await db.execute(select(func.count(Post.id)).where(Post.category_id == category_id))
+    ).scalar_one()
+    if post_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"该分类下存在 {post_count} 篇文章，请先移出或删除后再操作",
         )
     await db.delete(category)
     await db.commit()

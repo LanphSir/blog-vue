@@ -43,4 +43,6 @@ dist-ssr/
 
 # ---- Misc ----
 logs/
-*.log
+*.logpnpm-lock.yaml
+pnpm-lock.yaml
+pnpm-workspace.yaml

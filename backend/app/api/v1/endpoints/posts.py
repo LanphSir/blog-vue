@@ -101,9 +101,15 @@ async def admin_list_posts(
     page_size: int = Query(10, ge=1, le=100),
     status: str | None = None,
     keyword: str | None = None,
+    deleted: bool = False,
 ) -> ApiResponse[PageData[PostOut]]:
     items, total = await post_crud.list_posts(
-        db, page=page, page_size=page_size, status=status, keyword=keyword
+        db,
+        page=page,
+        page_size=page_size,
+        status=status,
+        keyword=keyword,
+        deleted_only=deleted,
     )
     return ok(
         PageData(
@@ -117,9 +123,9 @@ async def admin_list_posts(
 
 @router.get("/admin/posts/{post_id}", summary="文章详情（管理）")
 async def admin_get_post(post_id: int, db: DbDep, _: CurrentUser) -> ApiResponse[PostDetailOut]:
-    post = await post_crud.get_by_id(db, post_id)
+    post = await post_crud.get_by_id_not_deleted(db, post_id)
     if post is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在或已删除")
     await db.refresh(post, attribute_names=["tags"])
     return ok(PostDetailOut.model_validate(post))
 
@@ -137,9 +143,9 @@ async def create_post(payload: PostCreate, db: DbDep, _: CurrentUser) -> ApiResp
 async def update_post(
     post_id: int, payload: PostUpdate, db: DbDep, _: CurrentUser
 ) -> ApiResponse[PostOut]:
-    post = await post_crud.get_by_id(db, post_id)
+    post = await post_crud.get_by_id_not_deleted(db, post_id)
     if post is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在或已删除")
     post = await post_crud.update_post(db, post, payload)
     if payload.tag_ids is not None:
         await _apply_tags(db, post, payload.tag_ids)
@@ -148,11 +154,32 @@ async def update_post(
     return ok(PostOut.model_validate(post))
 
 
-@router.delete("/admin/posts/{post_id}", summary="删除文章")
+@router.delete("/admin/posts/{post_id}", summary="删除文章（软删除，进入回收站）")
 async def delete_post(post_id: int, db: DbDep, _: CurrentUser) -> ApiResponse[None]:
+    post = await post_crud.get_by_id_not_deleted(db, post_id)
+    if post is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在或已删除")
+    await post_crud.soft_delete_post(db, post)
+    await db.commit()
+    return ok(None)
+
+
+@router.post("/admin/posts/{post_id}/restore", summary="恢复文章")
+async def restore_post(post_id: int, db: DbDep, _: CurrentUser) -> ApiResponse[PostOut]:
+    post = await post_crud.get_by_id(db, post_id)
+    if post is None or post.deleted_at is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不在回收站中")
+    await post_crud.restore_post(db, post)
+    await db.commit()
+    await db.refresh(post)
+    return ok(PostOut.model_validate(post))
+
+
+@router.delete("/admin/posts/{post_id}/permanent", summary="彻底删除文章")
+async def permanent_delete_post(post_id: int, db: DbDep, _: CurrentUser) -> ApiResponse[None]:
     post = await post_crud.get_by_id(db, post_id)
     if post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在")
-    await post_crud.delete_post(db, post)
+    await post_crud.hard_delete_post(db, post)
     await db.commit()
     return ok(None)

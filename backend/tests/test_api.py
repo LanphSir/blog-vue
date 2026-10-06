@@ -278,3 +278,62 @@ def test_category_and_tag_visibility_flags(client):
 
     tags = client.get("/api/v1/tags").json()["data"]
     assert next(t for t in tags if t["slug"] == "private-tag")["sort_order"] == 3
+
+
+def test_post_soft_delete_restore_permanent(client):
+    headers = _login(client)
+
+    created = client.post(
+        "/api/v1/admin/posts",
+        headers=headers,
+        json={"title": "回收测试", "slug": "recycle-test", "status": "published"},
+    ).json()["data"]
+    pid = created["id"]
+
+    # soft delete → goes to recycle bin, disappears from normal/public lists
+    assert client.delete(f"/api/v1/admin/posts/{pid}", headers=headers).status_code == 200
+    normal_ids = [
+        p["id"]
+        for p in client.get("/api/v1/admin/posts?page_size=100", headers=headers).json()["data"]["items"]
+    ]
+    assert pid not in normal_ids
+    deleted_ids = [
+        p["id"]
+        for p in client.get(
+            "/api/v1/admin/posts?deleted=true&page_size=100", headers=headers
+        ).json()["data"]["items"]
+    ]
+    assert pid in deleted_ids
+    public_slugs = [p["slug"] for p in client.get("/api/v1/posts?page_size=50").json()["data"]["items"]]
+    assert "recycle-test" not in public_slugs
+
+    # restore → back in normal list
+    assert client.post(f"/api/v1/admin/posts/{pid}/restore", headers=headers).status_code == 200
+    normal_ids = [
+        p["id"]
+        for p in client.get("/api/v1/admin/posts?page_size=100", headers=headers).json()["data"]["items"]
+    ]
+    assert pid in normal_ids
+
+    # permanent delete → removed everywhere including recycle bin
+    assert (
+        client.delete(f"/api/v1/admin/posts/{pid}/permanent", headers=headers).status_code == 200
+    )
+    deleted_ids = [
+        p["id"]
+        for p in client.get(
+            "/api/v1/admin/posts?deleted=true&page_size=100", headers=headers
+        ).json()["data"]["items"]
+    ]
+    assert pid not in deleted_ids
+
+    # editing a soft-deleted post → 404
+    other = client.post(
+        "/api/v1/admin/posts",
+        headers=headers,
+        json={"title": "再回收", "slug": "recycle-again", "status": "published"},
+    ).json()["data"]
+    client.delete(f"/api/v1/admin/posts/{other['id']}", headers=headers)
+    assert (
+        client.get(f"/api/v1/admin/posts/{other['id']}", headers=headers).status_code == 404
+    )

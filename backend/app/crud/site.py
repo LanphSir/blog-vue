@@ -52,15 +52,23 @@ async def get_banner(db: AsyncSession, banner_id: int) -> Banner | None:
 
 
 async def get_site_stats(db: AsyncSession) -> dict[str, int]:
-    post_count = (await db.execute(select(func.count(Post.id)))).scalar_one()
+    post_count = (
+        await db.execute(select(func.count(Post.id)).where(Post.deleted_at.is_(None)))
+    ).scalar_one()
     category_count = (await db.execute(select(func.count(Category.id)))).scalar_one()
     tag_count = (await db.execute(select(func.count(Tag.id)))).scalar_one()
     total_views = (
-        await db.execute(select(func.coalesce(func.sum(Post.view_count), 0)))
+        await db.execute(
+            select(func.coalesce(func.sum(Post.view_count), 0)).where(Post.deleted_at.is_(None))
+        )
     ).scalar_one()
 
     earliest = (
-        await db.execute(select(func.min(Post.published_at)).where(Post.status == "published"))
+        await db.execute(
+            select(func.min(Post.published_at)).where(
+                Post.status == "published", Post.deleted_at.is_(None)
+            )
+        )
     ).scalar_one()
     if earliest is None:
         days_since_launch = 0

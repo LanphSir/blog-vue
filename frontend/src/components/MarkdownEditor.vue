@@ -1,51 +1,42 @@
 <template>
-  <div class="md-editor" :class="{ fullscreen }">
+  <div class="md-editor-wrap">
     <div class="md-toolbar">
-      <el-tabs v-model="activeTab" class="md-tabs">
-        <el-tab-pane label="编辑" name="edit" />
-        <el-tab-pane label="预览" name="preview" />
-      </el-tabs>
-
+      <span class="md-title">Markdown 编辑器</span>
       <div class="md-actions">
         <span class="md-count">{{ wordCount }} 字</span>
         <el-button size="small" plain @click="triggerImport">
           <el-icon class="btn-icon"><Upload /></el-icon>
           导入文件
         </el-button>
-        <el-tooltip content="全屏 (Ctrl+Shift+F)" placement="top">
-          <el-button size="small" plain :type="fullscreen ? 'primary' : ''" @click="toggleFullscreen">
-            <el-icon class="btn-icon"><FullScreen /></el-icon>
-          </el-button>
-        </el-tooltip>
-        <el-switch v-model="split" size="small" active-text="分栏" inactive-text="" class="md-split" />
       </div>
     </div>
 
     <input ref="fileInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" class="file-input" @change="onFileChange" />
 
-    <div class="md-body">
-      <div v-show="activeTab === 'edit' || split" class="md-pane">
-        <el-input
-          v-model="content"
-          type="textarea"
-          :rows="18"
-          placeholder="使用 Markdown 语法编写正文"
-          resize="none"
-          class="md-textarea"
-        />
-      </div>
-      <div v-show="activeTab === 'preview' || split" class="md-pane">
-        <div class="markdown-body md-preview" v-html="html" />
-      </div>
-    </div>
+    <component
+      :is="MdEditorComponent"
+      v-model="content"
+      class="md-editor-instance"
+      :theme="theme"
+      :language="'zh-CN'"
+      preview-theme="github"
+      code-theme="atom"
+      :style="{ height: '560px' }"
+      @on-save="handleSave"
+      @on-upload-img="handleUploadImg"
+      @on-error="handleError"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { FullScreen, Upload } from '@element-plus/icons-vue'
-import { useMarkdown } from '@/composables/useMarkdown'
+import { Upload } from '@element-plus/icons-vue'
+import 'md-editor-v3/lib/style.css'
+import { setupMdEditor } from '@/composables/useMdEditor'
+import { uploadImage } from '@/api/upload'
+import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -53,13 +44,16 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'save'])
 
-const activeTab = ref('edit')
-const split = ref(false)
-const fullscreen = ref(false)
+const MdEditorComponent = defineAsyncComponent(() =>
+  setupMdEditor().then((m) => m.MdEditor),
+)
+
+const themeStore = useThemeStore()
+
 const content = ref(props.modelValue)
 const fileInput = ref(null)
 
-const { html } = useMarkdown(content)
+const theme = computed(() => (themeStore.isDark ? 'dark' : 'light'))
 
 const wordCount = computed(() => {
   const text = content.value || ''
@@ -109,35 +103,43 @@ function onFileChange(e) {
   e.target.value = ''
 }
 
-function toggleFullscreen() {
-  fullscreen.value = !fullscreen.value
+function handleSave() {
+  emit('save')
+  return true
 }
 
-function onKeydown(e) {
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-    e.preventDefault()
-    emit('save')
+function handleUploadImg(files, callback) {
+  const list = Array.isArray(files) ? files : [files]
+  const uploads = list
+    .filter((f) => f)
+    .map(async (file) => {
+      try {
+        const res = await uploadImage(file)
+        return res.data
+      } catch {
+        ElMessage.error(`图片「${file.name}」上传失败`)
+        return ''
+      }
+    })
+  Promise.all(uploads).then((urls) => callback(urls.filter(Boolean)))
+}
+
+function handleError(err) {
+  const labels = {
+    Cropper: '图片裁剪',
+    fullscreen: '全屏',
+    prettier: '格式化',
+    overlength: '内容长度',
+    mermaid: 'Mermaid 图表',
+    echarts: 'ECharts 图表',
   }
+  ElMessage.warning(`${labels[err.name] || err.name} 功能不可用：${err.message}`)
 }
-
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
-.md-editor {
+.md-editor-wrap {
   width: 100%;
-}
-
-.md-editor.fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
-  background: var(--blog-bg);
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
 }
 
 .md-toolbar {
@@ -148,8 +150,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   margin-bottom: 8px;
 }
 
-.md-tabs :deep(.el-tabs__header) {
-  margin: 0;
+.md-title {
+  font-size: 13px;
+  color: var(--blog-text-secondary);
 }
 
 .md-actions {
@@ -168,41 +171,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   white-space: nowrap;
 }
 
-.md-split {
-  margin-left: 2px;
-}
-
 .file-input {
   display: none;
-}
-
-.md-body {
-  display: flex;
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
-}
-
-.md-pane {
-  flex: 1;
-  min-width: 0;
-}
-
-.md-textarea :deep(textarea) {
-  font-family: 'Fira Code', Consolas, monospace;
-  line-height: 1.7;
-}
-
-.md-preview {
-  padding: 12px;
-  border: 1px solid var(--blog-border);
-  border-radius: 4px;
-  min-height: 420px;
-  overflow: auto;
-}
-
-.fullscreen .md-preview,
-.fullscreen .md-textarea {
-  min-height: calc(100vh - 120px);
 }
 </style>
