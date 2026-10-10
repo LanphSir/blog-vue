@@ -41,17 +41,7 @@
           <el-input v-model="form.subtitle" type="textarea" :rows="2" placeholder="一句话介绍" />
         </el-form-item>
         <el-form-item label="图片">
-          <el-upload :show-file-list="false" :auto-upload="false" accept="image/*" :on-change="handleImage">
-            <el-button type="primary" plain>选择图片</el-button>
-          </el-upload>
-          <el-image
-            v-if="form.image"
-            :src="form.image"
-            fit="cover"
-            style="width: 200px; height: 90px; border-radius: 6px; margin-top: 8px"
-            :preview-src-list="[form.image]"
-            preview-teleported
-          />
+          <MediaPicker v-model="form.image" tip="建议横幅比例，支持本地上传或从媒体库选取" :preview-width="200" :preview-height="90" />
         </el-form-item>
         <el-form-item label="跳转链接">
           <el-input v-model="form.link" placeholder="如 /posts 或完整 URL（可选）" />
@@ -80,7 +70,7 @@ import {
   adminGetBanners,
   adminUpdateBanner,
 } from '@/api/site'
-import { uploadImage } from '@/api/upload'
+import MediaPicker from '@/components/admin/MediaPicker.vue'
 
 const banners = ref([])
 const loading = ref(false)
@@ -105,17 +95,6 @@ function openDialog(row) {
     form.value = { id: null, title: '', subtitle: '', image: null, link: null, sort_order: banners.value.length, enabled: true }
   }
   dialogVisible.value = true
-}
-
-async function handleImage(uploadFile) {
-  const file = uploadFile.raw
-  if (!file) return
-  try {
-    const res = await uploadImage(file)
-    form.value.image = res.data
-  } catch {
-    /* 拦截器已提示 */
-  }
 }
 
 async function handleSave() {

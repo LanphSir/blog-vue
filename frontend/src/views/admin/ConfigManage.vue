@@ -5,6 +5,9 @@
       <el-tab-pane label="基础信息" name="basic">
         <el-form label-width="140px" :model="form">
           <ConfigFieldItems :fields="basicFields" :form="form" />
+          <el-form-item label="Logo 图片">
+            <MediaPicker v-model="form.site_logo" tip="站点 Logo，支持上传或从媒体库选取" :preview-width="96" :preview-height="40" />
+          </el-form-item>
         </el-form>
       </el-tab-pane>
 
@@ -27,8 +30,8 @@
           <el-collapse-transition>
             <div v-show="isOn('profile_visible')">
               <el-form label-width="140px" :model="form">
-                <el-form-item label="作者头像 URL">
-                  <el-input v-model="form.site_avatar" placeholder="侧边简介卡片头像" />
+                <el-form-item label="作者头像">
+                  <MediaPicker v-model="form.site_avatar" tip="方形头像，支持上传或从媒体库选取" :preview-width="64" :preview-height="64" />
                 </el-form-item>
                 <el-form-item label="个人简介">
                   <el-input v-model="form.site_bio" type="textarea" :rows="3" placeholder="侧边简介卡片文案" />
@@ -108,6 +111,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElCollapseTransition, ElMessage } from 'element-plus'
 import ConfigFieldItems from '@/components/admin/ConfigFieldItems.vue'
+import MediaPicker from '@/components/admin/MediaPicker.vue'
 import {
   adminCreateSocialLink,
   adminDeleteSocialLink,
@@ -123,7 +127,6 @@ const basicFields = [
   { key: 'site_description', label: '站点描述', type: 'textarea', rows: 2 },
   { key: 'site_slogan', label: '首页副标题', type: 'input', placeholder: '显示在首页 Hero 区' },
   { key: 'site_author', label: '站点作者', type: 'input', placeholder: '文章卡片显示的默认作者' },
-  { key: 'site_logo', label: 'Logo 地址', type: 'input' },
   { key: 'icp', label: 'ICP 备案号', type: 'input' },
   { key: 'footer_text', label: '页脚文字', type: 'input' },
 ]

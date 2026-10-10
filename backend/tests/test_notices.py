@@ -2,9 +2,7 @@
 
 
 def _login(client):
-    login = client.post(
-        "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
-    )
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
     return {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
 
 
@@ -51,9 +49,7 @@ def test_notice_crud_and_public_rules(client):
     detail = client.get(f"/api/v1/notices/{page.json()['data']['id']}")
     assert detail.json()["data"]["content"] == "长文公告正文"
 
-    assert (
-        client.get(f"/api/v1/notices/{disabled.json()['data']['id']}").status_code == 404
-    )
+    assert client.get(f"/api/v1/notices/{disabled.json()['data']['id']}").status_code == 404
 
     admin_list = client.get("/api/v1/admin/notices", headers=headers).json()["data"]
     assert len(admin_list) == 4
@@ -70,7 +66,9 @@ def test_notice_version_bumps_only_on_content_changes(client):
     ).json()["data"]
     nid = created["id"]
 
-    bumped = client.put(f"/api/v1/admin/notices/{nid}", headers=headers, json={"content": "修改后的正文"})
+    bumped = client.put(
+        f"/api/v1/admin/notices/{nid}", headers=headers, json={"content": "修改后的正文"}
+    )
     assert bumped.json()["data"]["version"] == 2
 
     renamed = client.put(f"/api/v1/admin/notices/{nid}", headers=headers, json={"title": "新标题"})
@@ -98,7 +96,9 @@ def test_notice_type_validation(client):
         json={"title": "x", "content": "y", "type": "banner"},
     ).json()["data"]
     assert (
-        client.put(f"/api/v1/admin/notices/{created['id']}", headers=headers, json={"type": "sms"}).status_code
+        client.put(
+            f"/api/v1/admin/notices/{created['id']}", headers=headers, json={"type": "sms"}
+        ).status_code
         == 422
     )
 

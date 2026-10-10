@@ -9,6 +9,7 @@
         <el-menu-item index="/admin/tags">标签管理</el-menu-item>
         <el-menu-item index="/admin/friends">友链管理</el-menu-item>
         <el-menu-item index="/admin/banners">轮播图</el-menu-item>
+        <el-menu-item index="/admin/media">媒体库</el-menu-item>
         <el-menu-item index="/admin/menus">导航菜单</el-menu-item>
         <el-menu-item index="/admin/notices">公告管理</el-menu-item>
         <el-menu-item index="/admin/config">站点配置</el-menu-item>

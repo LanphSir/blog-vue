@@ -73,6 +73,7 @@ import 'md-editor-v3/lib/preview.css'
 import ColoredTag from '@/components/ColoredTag.vue'
 import { setupMdEditor } from '@/composables/useMdEditor'
 import { getPostBySlug, getPostNeighbors } from '@/api/posts'
+import { setRouteTitle } from '@/utils/pageTitle'
 import { useConfigStore } from '@/stores/config'
 import { useThemeStore } from '@/stores/theme'
 
@@ -117,9 +118,11 @@ async function load() {
       getPostNeighbors(slug),
     ])
     post.value = detailRes.data
+    setRouteTitle(detailRes.data?.title || '')
     neighbors.value = neighborsRes.data
   } catch {
     post.value = null
+    setRouteTitle('')
   } finally {
     loading.value = false
   }

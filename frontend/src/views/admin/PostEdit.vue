@@ -8,18 +8,7 @@
         <el-input v-model="form.slug" placeholder="URL 别名，如 my-first-post" />
       </el-form-item>
       <el-form-item label="封面图">
-        <div class="cover-upload">
-          <el-upload
-            :show-file-list="false"
-            :auto-upload="false"
-            accept="image/*"
-            :on-change="handleCoverChange"
-          >
-            <el-button type="primary" plain>选择图片</el-button>
-          </el-upload>
-          <img v-if="form.cover_image" :src="form.cover_image" class="cover-preview" alt="封面预览" />
-          <el-button v-if="form.cover_image" link type="danger" @click="form.cover_image = ''">移除</el-button>
-        </div>
+        <MediaPicker v-model="form.cover_image" tip="支持本地上传或从媒体库选取" :preview-width="220" :preview-height="120" />
       </el-form-item>
       <el-form-item label="摘要">
         <el-input v-model="form.summary" type="textarea" :rows="3" placeholder="文章摘要（可选）" />
@@ -68,9 +57,9 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import MediaPicker from '@/components/admin/MediaPicker.vue'
 import { adminCreatePost, adminGetPost, adminUpdatePost } from '@/api/posts'
 import { getCategories, getTags } from '@/api/categories'
-import { uploadImage } from '@/api/upload'
 
 const route = useRoute()
 const router = useRouter()
@@ -94,20 +83,6 @@ const form = ref({
 const categories = ref([])
 const tags = ref([])
 const saving = ref(false)
-const uploading = ref(false)
-
-async function handleCoverChange(uploadFile) {
-  const file = uploadFile.raw
-  if (!file) return
-  uploading.value = true
-  try {
-    const res = await uploadImage(file)
-    form.value.cover_image = res.data
-    ElMessage.success('封面已上传')
-  } finally {
-    uploading.value = false
-  }
-}
 
 onMounted(async () => {
   const [catRes, tagRes] = await Promise.all([getCategories(), getTags()])
@@ -141,19 +116,6 @@ async function handleSave() {
 </script>
 
 <style scoped>
-.cover-upload {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.cover-preview {
-  max-width: 180px;
-  max-height: 100px;
-  border-radius: 6px;
-  border: 1px solid var(--blog-border);
-}
-
 .form-gap {
   width: 24px;
 }

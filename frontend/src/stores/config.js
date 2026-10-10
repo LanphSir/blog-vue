@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getMenus, getNotices, getSiteConfig, getSocialLinks } from '@/api/site'
 import { isNoticeDismissed } from '@/utils/notice'
+import { setSiteName } from '@/utils/pageTitle'
 
 export const useConfigStore = defineStore('config', () => {
   const configs = ref({})
@@ -59,6 +60,7 @@ export const useConfigStore = defineStore('config', () => {
     }
     configs.value = map
     applyAccentColor()
+    setSiteName(map.site_name)
     await Promise.all([menusReq, linksReq, noticesReq])
   }
 

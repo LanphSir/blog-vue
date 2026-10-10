@@ -50,8 +50,14 @@ async def update_site_config(
     return ok([ConfigOut.model_validate(i) for i in items])
 
 
-@router.get("/friends", summary="友链列表（公开）")
+@router.get("/friends", summary="友链列表（公开，仅显示中）")
 async def list_friends(db: DbDep) -> ApiResponse[list[FriendLinkOut]]:
+    links = await site_crud.list_friend_links(db, visible_only=True)
+    return ok([FriendLinkOut.model_validate(link) for link in links])
+
+
+@router.get("/admin/friends", summary="友链管理列表（含隐藏）")
+async def admin_list_friends(db: DbDep, _: CurrentUser) -> ApiResponse[list[FriendLinkOut]]:
     links = await site_crud.list_friend_links(db)
     return ok([FriendLinkOut.model_validate(link) for link in links])
 

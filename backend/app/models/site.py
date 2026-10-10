@@ -34,6 +34,7 @@ class FriendLink(Base):
     url: Mapped[str] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(String(255), default=None)
     icon: Mapped[str | None] = mapped_column(String(500), default=None)
+    visible: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(default=0)
 
 
@@ -78,3 +79,17 @@ class Notice(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class MediaAsset(Base):
+    __tablename__ = "media_assets"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), default="")
+    stored_name: Mapped[str] = mapped_column(String(255), unique=True)
+    rel_path: Mapped[str] = mapped_column(String(500))
+    url: Mapped[str] = mapped_column(String(600))
+    ext: Mapped[str] = mapped_column(String(10), default="")
+    mime: Mapped[str | None] = mapped_column(String(100), default=None)
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)

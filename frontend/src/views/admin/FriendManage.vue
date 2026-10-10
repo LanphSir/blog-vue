@@ -18,6 +18,11 @@
         </template>
       </el-table-column>
       <el-table-column prop="description" label="描述" min-width="140" show-overflow-tooltip />
+      <el-table-column label="显示" width="80" align="center">
+        <template #default="{ row }">
+          <el-switch :model-value="row.visible" @change="(v) => toggleVisible(row, v)" />
+        </template>
+      </el-table-column>
       <el-table-column prop="sort_order" label="排序" width="70" align="center" />
       <el-table-column label="操作" width="140">
         <template #default="{ row }">
@@ -39,13 +44,7 @@
           <el-input v-model="form.description" type="textarea" :rows="2" maxlength="255" placeholder="选填，显示在前台卡片" />
         </el-form-item>
         <el-form-item label="图标">
-          <div class="icon-field">
-            <el-avatar v-if="form.icon" :src="form.icon" :size="48" shape="square" class="icon-preview" />
-            <el-upload :show-file-list="false" :auto-upload="false" accept="image/*" :on-change="handleIcon">
-              <el-button :loading="uploading" type="primary" plain>{{ form.icon ? '更换图标' : '上传图标' }}</el-button>
-            </el-upload>
-            <el-button v-if="form.icon" link type="danger" @click="form.icon = null">移除</el-button>
-          </div>
+          <MediaPicker v-model="form.icon" tip="方形小图效果最佳" :preview-width="56" :preview-height="56" />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sort_order" :min="0" controls-position="right" />
@@ -66,27 +65,32 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   adminCreateFriend,
   adminDeleteFriend,
+  adminGetFriends,
   adminUpdateFriend,
-  getFriends,
 } from '@/api/site'
-import { uploadImage } from '@/api/upload'
+import MediaPicker from '@/components/admin/MediaPicker.vue'
 
 const links = ref([])
 const loading = ref(false)
 const saving = ref(false)
-const uploading = ref(false)
 const dialogVisible = ref(false)
-const emptyForm = () => ({ id: null, name: '', url: '', description: '', icon: null, sort_order: 0 })
+const emptyForm = () => ({ id: null, name: '', url: '', description: '', icon: null, visible: true, sort_order: 0 })
 const form = ref(emptyForm())
 
 async function load() {
   loading.value = true
   try {
-    const res = await getFriends()
+    const res = await adminGetFriends()
     links.value = res.data
   } finally {
     loading.value = false
   }
+}
+
+async function toggleVisible(row, value) {
+  await adminUpdateFriend(row.id, { visible: value })
+  row.visible = value
+  ElMessage.success(value ? `「${row.name}」已显示` : `「${row.name}」已隐藏`)
 }
 
 function openCreate() {
@@ -99,20 +103,6 @@ function openEdit(row) {
   dialogVisible.value = true
 }
 
-async function handleIcon(file) {
-  const raw = file.raw || file
-  if (!raw) return
-  uploading.value = true
-  try {
-    const res = await uploadImage(raw)
-    form.value.icon = res.data
-  } catch {
-    /* 拦截器已提示 */
-  } finally {
-    uploading.value = false
-  }
-}
-
 async function handleSave() {
   const name = (form.value.name || '').trim()
   const url = (form.value.url || '').trim()
@@ -123,6 +113,7 @@ async function handleSave() {
     url,
     description: (form.value.description || '').trim() || null,
     icon: form.value.icon || null,
+    visible: form.value.visible,
     sort_order: form.value.sort_order || 0,
   }
   saving.value = true
@@ -162,16 +153,6 @@ onMounted(load)
 
 .no-icon {
   color: var(--blog-text-secondary);
-}
-
-.icon-field {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.icon-preview {
-  border: 1px solid var(--blog-border);
 }
 
 .hint {

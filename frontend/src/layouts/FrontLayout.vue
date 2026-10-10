@@ -294,6 +294,7 @@ onBeforeUnmount(() => {
 .nav {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   flex: 1;
   min-width: 0;

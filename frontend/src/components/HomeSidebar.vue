@@ -16,7 +16,7 @@
         <button
           v-if="hasMoreTags"
           class="more-btn"
-          @click="$router.push({ name: 'home', query: { tag_id: allTags[0]?.id || undefined } })"
+          @click="$router.push({ name: 'tags', query: { tag_id: allTags[0]?.id || undefined } })"
         >
           更多 +
         </button>

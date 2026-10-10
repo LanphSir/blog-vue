@@ -25,6 +25,7 @@ import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getNotice } from '@/api/site'
 import { setupMdEditor } from '@/composables/useMdEditor'
+import { setRouteTitle } from '@/utils/pageTitle'
 import { useThemeStore } from '@/stores/theme'
 
 const MdPreview = defineAsyncComponent(() => setupMdEditor().then((m) => m.MdPreview))
@@ -45,8 +46,10 @@ onMounted(async () => {
   try {
     const res = await getNotice(route.params.id)
     notice.value = res.data
+    setRouteTitle(res.data?.title || '')
   } catch {
     notice.value = null
+    setRouteTitle('')
   } finally {
     loading.value = false
   }

@@ -16,7 +16,15 @@ from app.core.security import hash_password
 from app.crud import site as site_crud
 from app.crud import user as user_crud
 from app.models.post import Category, Post, Tag
-from app.models.site import Banner, FriendLink, MenuItem, Notice, SiteConfig, SocialLink
+from app.models.site import (
+    Banner,
+    FriendLink,
+    MediaAsset,
+    MenuItem,
+    Notice,
+    SiteConfig,
+    SocialLink,
+)
 
 logger = logging.getLogger("blog")
 
@@ -713,6 +721,7 @@ async def seed_default_data() -> None:
         await _seed_default_menus(db)
         await _migrate_social_links(db)
         await _migrate_notice(db)
+        await sweep_existing_uploads(db)
 
 
 async def seed_demo_data() -> None:
@@ -798,3 +807,52 @@ if __name__ == "__main__":
     import asyncio
 
     asyncio.run(main())
+
+
+async def sweep_existing_uploads(db: AsyncSession) -> None:
+    """Register uploads saved before the media library existed (one-shot, idempotent)."""
+    count = (await db.execute(select(func.count(MediaAsset.id)))).scalar_one()
+    if count > 0:
+        return
+    root = settings.upload_path
+    if not root.exists():
+        return
+    known: set[str] = set()
+    added = 0
+    for path in sorted(root.rglob("*")):
+        if (
+            not path.is_file()
+            or path.name.startswith(".")
+            or path.suffix.lower()
+            not in {
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".gif",
+                ".webp",
+                ".svg",
+            }
+        ):
+            continue
+        stored = path.name
+        if stored in known:
+            continue
+        known.add(stored)
+        rel = path.relative_to(root)
+        stat = path.stat()
+        db.add(
+            MediaAsset(
+                name=path.name,
+                stored_name=stored,
+                rel_path=str(rel),
+                url=f"/uploads/{rel}",
+                ext=path.suffix.lower(),
+                mime=None,
+                size=stat.st_size,
+                created_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC).replace(tzinfo=None),
+            )
+        )
+        added += 1
+    if added:
+        await db.commit()
+        logger.info("Registered %d legacy upload files into media library", added)

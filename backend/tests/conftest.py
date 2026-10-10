@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.security import hash_password
 from app.main import app
@@ -12,6 +13,12 @@ from app.models.site import SiteConfig
 from app.models.user import User
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolated_upload_dir(tmp_path_factory):
+    settings.upload_dir = str(tmp_path_factory.mktemp("uploads"))
+
 
 DEFAULT_TEST_CONFIG = {
     "site_name": "测试博客",

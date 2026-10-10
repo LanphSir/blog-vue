@@ -30,8 +30,12 @@ async def set_config(db: AsyncSession, key: str, value: str) -> SiteConfig:
     return item
 
 
-async def list_friend_links(db: AsyncSession) -> list[FriendLink]:
-    result = await db.execute(select(FriendLink).order_by(FriendLink.sort_order, FriendLink.id))
+async def list_friend_links(db: AsyncSession, visible_only: bool = False) -> list[FriendLink]:
+    query = select(FriendLink)
+    if visible_only:
+        query = query.where(FriendLink.visible.is_(True))
+    query = query.order_by(FriendLink.sort_order, FriendLink.id)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 

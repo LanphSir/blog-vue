@@ -40,9 +40,10 @@ SQLite
 - `categories`：分类（名称、Slug、排序）
 - `tags`：标签（名称、Slug），与文章多对多
 - `site_configs`：键值型站点配置（站点名、描述、Logo、备案、页脚等标量配置；布尔值以字符串 "true"/"false" 存储）
-- `friend_links`：友链（名称、地址、描述、图标 URL（可空，经 `/admin/upload` 上传）、排序；迁移 `8a2f1c3d4b5e`）
+- `friend_links`：友链（名称、地址、描述、图标 URL（可空，经 `/admin/upload` 上传）、`visible` 显隐（公开列表过滤，管理端可见全部）、排序；迁移 `8a2f1c3d4b5e`/`9c4e2f6a1d7b`）
 - `menu_items`：导航菜单（label/path/icon/type[link|category]/is_external/parent_id 两级/sort_order/visible；“首页”项由接口固定拼接不落库；默认 4 项首次启动种入一次，配置标记 `menus_seeded` 防删空后回填）
-- `social_links`：社交链接（platform 预置或 custom+label/url/visible/sort_order，驱动简介卡片图标）
+- `media_assets`：媒体库（上传图片登记：原名/存储名 `时间戳_哈希前8位`/相对路径 `年/月/日/文件`/url/mime/大小/时间；上传按此规则落盘并可被列表/引用保护删除；首次启动盘点 uploads 既有文件；迁移 `af5b7e9d2c31`）
+：社交链接（platform 预置或 custom+label/url/visible/sort_order，驱动简介卡片图标）
 - `notices`：公告（title/content/type[banner|dialog|page]/enabled/version/sort_order；内容变更自动升版本触发重推）
 - 数据迁移：旧 `site_menus`/`profile_links` JSON 配置与旧公告三键在启动时一次性迁移入对应表（解析失败仅告警，幂等）；迁移后旧键不再出现在默认配置与管理表单
 

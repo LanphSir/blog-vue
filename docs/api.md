@@ -12,7 +12,7 @@
 | GET | `/site/config` | 站点配置列表 |
 | GET | `/site/stats` | 站点统计（文章/分类/标签数、总阅读量、运行天数） |
 | GET | `/banners` | 轮播图列表（仅启用） |
-| GET | `/friends` | 友链列表（含 `icon` 图标 URL，可空） |
+| GET | `/friends` | 友链列表（公开，仅 `visible=true`；含 `icon` 图标 URL，可空） |
 | GET | `/categories` | 分类列表（含文章数与 color/parent_id） |
 | GET | `/categories/tree` | 分类树（post_count 聚合子分类） |
 | GET | `/tags` | 标签列表（含文章数与 color） |
@@ -53,14 +53,18 @@
 | PUT | `/admin/categories/{id}` | 更新分类 |
 | DELETE | `/admin/categories/{id}` | 删除分类 |
 | PUT | `/admin/site/config` | 批量更新站点配置，body 为 `[{key, value}]` |
-| POST | `/admin/friends` | 创建友链（name/url 必填，可选 description/icon/sort_order） |
+| GET | `/admin/friends` | 友链管理列表（含隐藏项） |
+| POST | `/admin/friends` | 创建友链（name/url 必填，可选 description/icon/visible/sort_order） |
 | PUT | `/admin/friends/{id}` | 更新友链 |
 | DELETE | `/admin/friends/{id}` | 删除友链 |
 | GET | `/admin/banners` | 轮播图管理列表（含禁用） |
 | POST | `/admin/banners` | 创建轮播图 |
 | PUT | `/admin/banners/{id}` | 更新轮播图 |
 | DELETE | `/admin/banners/{id}` | 删除轮播图 |
-| POST | `/admin/upload` | 上传图片（封面/轮播图），返回 `/uploads/...` 路径 |
+| POST | `/admin/upload` | 上传图片（multipart `file`；jpg/png/gif/webp/svg，≤5MB；magic-bytes 文件头校验，伪装扩展名 400）。按 `uploads/年/月/日/` 归档，文件名=`时间戳_哈希前8位`，自动登记媒体库，返回 URL |
+| GET | `/admin/media` | 媒体库分页列表（`page`/`page_size`，返回 items/total/page/page_size；`dir=年/月[/日]` 前缀过滤，`dir=root` 筛根目录旧文件） |
+| GET | `/admin/media/folders` | 各存储目录文件数聚合（`[{dir, count}]`，dir=`年/月/日` 或 `root`），供前端目录树 |
+| DELETE | `/admin/media/{id}` | 删除图片文件与记录；默认引用保护（被文章/轮播/友链/配置引用返回 409），`?force=true` 强删 |
 | GET | `/admin/menus` | 菜单管理列表（平铺，含隐藏） |
 | POST | `/admin/menus` | 创建菜单（校验：两级上限；link 路径须 `/` 开头；外链须 http(s)；category 必须顶级） |
 | PUT | `/admin/menus/{id}` | 更新菜单（删除父项会连带删除子项） |

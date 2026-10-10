@@ -1,17 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { setRouteTitle } from '@/utils/pageTitle'
 
 const routes = [
   {
     path: '/',
     component: () => import('@/layouts/FrontLayout.vue'),
     children: [
-      { path: '', name: 'home', component: () => import('@/views/front/Home.vue') },
-      { path: 'posts', name: 'posts', component: () => import('@/views/front/PostList.vue') },
-      { path: 'categories', name: 'categories', component: () => import('@/views/front/CategoryPage.vue') },
-      { path: 'tags', name: 'tags', component: () => import('@/views/front/TagPage.vue') },
+      { path: '', name: 'home', meta: { title: '首页' }, component: () => import('@/views/front/Home.vue') },
+      { path: 'posts', name: 'posts', meta: { title: '文章' }, component: () => import('@/views/front/PostList.vue') },
+      { path: 'categories', name: 'categories', meta: { title: '分类' }, component: () => import('@/views/front/CategoryPage.vue') },
+      { path: 'tags', name: 'tags', meta: { title: '标签' }, component: () => import('@/views/front/TagPage.vue') },
       { path: 'post/:slug', name: 'post-detail', component: () => import('@/views/front/PostDetail.vue') },
-      { path: 'friends', name: 'friends', component: () => import('@/views/front/Friends.vue') },
-      { path: 'about', name: 'about', component: () => import('@/views/front/About.vue') },
+      { path: 'friends', name: 'friends', meta: { title: '友情链接' }, component: () => import('@/views/front/Friends.vue') },
+      { path: 'about', name: 'about', meta: { title: '关于' }, component: () => import('@/views/front/About.vue') },
       { path: 'notice/:id', name: 'notice', component: () => import('@/views/front/NoticePage.vue') },
     ],
   },
@@ -19,7 +20,7 @@ const routes = [
     path: '/admin/login',
     name: 'login',
     component: () => import('@/views/admin/Login.vue'),
-    meta: { public: true },
+    meta: { public: true, title: '登录' },
   },
   {
     path: '/admin',
@@ -27,16 +28,17 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       { path: '', name: 'dashboard', component: () => import('@/views/admin/Dashboard.vue') },
-      { path: 'posts', name: 'admin-posts', component: () => import('@/views/admin/PostManage.vue') },
-      { path: 'posts/new', name: 'admin-post-create', component: () => import('@/views/admin/PostEdit.vue') },
-      { path: 'posts/:id', name: 'admin-post-edit', component: () => import('@/views/admin/PostEdit.vue') },
-      { path: 'categories', name: 'admin-categories', component: () => import('@/views/admin/CategoryManage.vue') },
-      { path: 'tags', name: 'admin-tags', component: () => import('@/views/admin/TagManage.vue') },
-      { path: 'banners', name: 'admin-banners', component: () => import('@/views/admin/BannerManage.vue') },
-      { path: 'menus', name: 'admin-menus', component: () => import('@/views/admin/MenuManage.vue') },
-      { path: 'notices', name: 'admin-notices', component: () => import('@/views/admin/NoticeManage.vue') },
-      { path: 'config', name: 'admin-config', component: () => import('@/views/admin/ConfigManage.vue') },
-      { path: 'friends', name: 'admin-friends', component: () => import('@/views/admin/FriendManage.vue') },
+      { path: 'posts', name: 'admin-posts', meta: { title: '文章管理' }, component: () => import('@/views/admin/PostManage.vue') },
+      { path: 'posts/new', name: 'admin-post-create', meta: { title: '写文章' }, component: () => import('@/views/admin/PostEdit.vue') },
+      { path: 'posts/:id', name: 'admin-post-edit', meta: { title: '编辑文章' }, component: () => import('@/views/admin/PostEdit.vue') },
+      { path: 'categories', name: 'admin-categories', meta: { title: '分类管理' }, component: () => import('@/views/admin/CategoryManage.vue') },
+      { path: 'tags', name: 'admin-tags', meta: { title: '标签管理' }, component: () => import('@/views/admin/TagManage.vue') },
+      { path: 'banners', name: 'admin-banners', meta: { title: '轮播图管理' }, component: () => import('@/views/admin/BannerManage.vue') },
+      { path: 'media', name: 'admin-media', meta: { title: '媒体库' }, component: () => import('@/views/admin/MediaManage.vue') },
+      { path: 'menus', name: 'admin-menus', meta: { title: '导航菜单' }, component: () => import('@/views/admin/MenuManage.vue') },
+      { path: 'notices', name: 'admin-notices', meta: { title: '公告管理' }, component: () => import('@/views/admin/NoticeManage.vue') },
+      { path: 'config', name: 'admin-config', meta: { title: '站点配置' }, component: () => import('@/views/admin/ConfigManage.vue') },
+      { path: 'friends', name: 'admin-friends', meta: { title: '友链管理' }, component: () => import('@/views/admin/FriendManage.vue') },
     ],
   },
 ]
@@ -58,6 +60,10 @@ router.beforeEach((to) => {
     return { name: 'dashboard' }
   }
   return true
+})
+
+router.afterEach((to) => {
+  setRouteTitle(to.meta.title || '')
 })
 
 export default router

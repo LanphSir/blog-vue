@@ -8,9 +8,7 @@ def test_health(client):
 
 
 def test_login_wrong_password(client):
-    resp = client.post(
-        "/api/v1/auth/login", json={"username": "admin", "password": "wrong"}
-    )
+    resp = client.post("/api/v1/auth/login", json={"username": "admin", "password": "wrong"})
     assert resp.status_code == 401
 
 
@@ -26,9 +24,7 @@ def test_site_config_seeded(client):
 
 
 def test_admin_create_and_publish_post(client):
-    login = client.post(
-        "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
-    )
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
     token = login.json()["data"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -56,9 +52,7 @@ def test_admin_create_and_publish_post(client):
 
 
 def test_post_neighbors(client):
-    login = client.post(
-        "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
-    )
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
     headers = {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
 
     client.post(
@@ -83,9 +77,7 @@ def test_post_neighbors(client):
 
 
 def test_admin_tags_crud(client):
-    login = client.post(
-        "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
-    )
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
     headers = {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
 
     created = client.post(
@@ -97,9 +89,7 @@ def test_admin_tags_crud(client):
     listed = client.get("/api/v1/tags")
     assert any(tag["slug"] == "vue" for tag in listed.json()["data"])
 
-    updated = client.put(
-        f"/api/v1/admin/tags/{tag_id}", headers=headers, json={"name": "Vue3"}
-    )
+    updated = client.put(f"/api/v1/admin/tags/{tag_id}", headers=headers, json={"name": "Vue3"})
     assert updated.json()["data"]["name"] == "Vue3"
 
     deleted = client.delete(f"/api/v1/admin/tags/{tag_id}", headers=headers)
@@ -113,9 +103,7 @@ def test_upload_requires_auth_and_rejects_bad_type(client):
     )
     assert unauth.status_code == 401
 
-    login = client.post(
-        "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
-    )
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
     headers = {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
 
     bad = client.post(
@@ -128,16 +116,14 @@ def test_upload_requires_auth_and_rejects_bad_type(client):
     ok_resp = client.post(
         "/api/v1/admin/upload",
         headers=headers,
-        files={"file": ("cover.png", b"\x89PNG\r\n", "image/png")},
+        files={"file": ("cover.png", b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR", "image/png")},
     )
     assert ok_resp.status_code == 201
     assert ok_resp.json()["data"].startswith("/uploads/")
 
 
 def _login(client):
-    login = client.post(
-        "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
-    )
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
     return {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
 
 
@@ -158,7 +144,12 @@ def test_category_tree_hierarchy_and_parent_filter(client):
     client.post(
         "/api/v1/admin/posts",
         headers=headers,
-        json={"title": "数据库文章", "slug": "db-post", "category_id": child["id"], "status": "published"},
+        json={
+            "title": "数据库文章",
+            "slug": "db-post",
+            "category_id": child["id"],
+            "status": "published",
+        },
     )
 
     tree = client.get("/api/v1/categories/tree").json()["data"]
@@ -294,7 +285,9 @@ def test_post_soft_delete_restore_permanent(client):
     assert client.delete(f"/api/v1/admin/posts/{pid}", headers=headers).status_code == 200
     normal_ids = [
         p["id"]
-        for p in client.get("/api/v1/admin/posts?page_size=100", headers=headers).json()["data"]["items"]
+        for p in client.get("/api/v1/admin/posts?page_size=100", headers=headers).json()["data"][
+            "items"
+        ]
     ]
     assert pid not in normal_ids
     deleted_ids = [
@@ -304,21 +297,23 @@ def test_post_soft_delete_restore_permanent(client):
         ).json()["data"]["items"]
     ]
     assert pid in deleted_ids
-    public_slugs = [p["slug"] for p in client.get("/api/v1/posts?page_size=50").json()["data"]["items"]]
+    public_slugs = [
+        p["slug"] for p in client.get("/api/v1/posts?page_size=50").json()["data"]["items"]
+    ]
     assert "recycle-test" not in public_slugs
 
     # restore → back in normal list
     assert client.post(f"/api/v1/admin/posts/{pid}/restore", headers=headers).status_code == 200
     normal_ids = [
         p["id"]
-        for p in client.get("/api/v1/admin/posts?page_size=100", headers=headers).json()["data"]["items"]
+        for p in client.get("/api/v1/admin/posts?page_size=100", headers=headers).json()["data"][
+            "items"
+        ]
     ]
     assert pid in normal_ids
 
     # permanent delete → removed everywhere including recycle bin
-    assert (
-        client.delete(f"/api/v1/admin/posts/{pid}/permanent", headers=headers).status_code == 200
-    )
+    assert client.delete(f"/api/v1/admin/posts/{pid}/permanent", headers=headers).status_code == 200
     deleted_ids = [
         p["id"]
         for p in client.get(
@@ -334,6 +329,4 @@ def test_post_soft_delete_restore_permanent(client):
         json={"title": "再回收", "slug": "recycle-again", "status": "published"},
     ).json()["data"]
     client.delete(f"/api/v1/admin/posts/{other['id']}", headers=headers)
-    assert (
-        client.get(f"/api/v1/admin/posts/{other['id']}", headers=headers).status_code == 404
-    )
+    assert client.get(f"/api/v1/admin/posts/{other['id']}", headers=headers).status_code == 404

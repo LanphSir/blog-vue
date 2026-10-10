@@ -7,3 +7,10 @@ export const uploadImage = (file) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
+
+export const adminListMedia = (params) => request.get('/admin/media', { params })
+
+export const adminMediaFolders = () => request.get('/admin/media/folders')
+
+export const adminDeleteMedia = (id, force = false) =>
+  request.delete(`/admin/media/${id}`, { params: { force } })

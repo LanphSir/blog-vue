@@ -20,6 +20,7 @@ class FriendLinkCreate(BaseModel):
     url: str
     description: str | None = None
     icon: str | None = None
+    visible: bool = True
     sort_order: int = 0
 
 
@@ -28,6 +29,7 @@ class FriendLinkUpdate(BaseModel):
     url: str | None = None
     description: str | None = None
     icon: str | None = None
+    visible: bool | None = None
     sort_order: int | None = None
 
 
@@ -37,6 +39,7 @@ class FriendLinkOut(BaseModel):
     url: str
     description: str | None
     icon: str | None
+    visible: bool
     sort_order: int
 
     model_config = {"from_attributes": True}

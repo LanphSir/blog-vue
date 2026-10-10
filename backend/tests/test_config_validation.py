@@ -2,9 +2,7 @@
 
 
 def _login(client):
-    login = client.post(
-        "/api/v1/auth/login", json={"username": "admin", "password": "admin123"}
-    )
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
     return {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
 
 
