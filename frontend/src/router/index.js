@@ -12,6 +12,7 @@ const routes = [
       { path: 'post/:slug', name: 'post-detail', component: () => import('@/views/front/PostDetail.vue') },
       { path: 'friends', name: 'friends', component: () => import('@/views/front/Friends.vue') },
       { path: 'about', name: 'about', component: () => import('@/views/front/About.vue') },
+      { path: 'notice/:id', name: 'notice', component: () => import('@/views/front/NoticePage.vue') },
     ],
   },
   {
@@ -32,6 +33,8 @@ const routes = [
       { path: 'categories', name: 'admin-categories', component: () => import('@/views/admin/CategoryManage.vue') },
       { path: 'tags', name: 'admin-tags', component: () => import('@/views/admin/TagManage.vue') },
       { path: 'banners', name: 'admin-banners', component: () => import('@/views/admin/BannerManage.vue') },
+      { path: 'menus', name: 'admin-menus', component: () => import('@/views/admin/MenuManage.vue') },
+      { path: 'notices', name: 'admin-notices', component: () => import('@/views/admin/NoticeManage.vue') },
       { path: 'config', name: 'admin-config', component: () => import('@/views/admin/ConfigManage.vue') },
       { path: 'friends', name: 'admin-friends', component: () => import('@/views/admin/FriendManage.vue') },
     ],

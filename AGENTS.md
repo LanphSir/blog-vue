@@ -25,7 +25,11 @@ Personal blog: `backend/` (FastAPI + SQLite) and `frontend/` (Vue 3 + Vite + Ele
 - Post ordering (public list): `is_top` → `sort_weight` → `published_at` desc; category/tag order by `sort_order`. Categories/tags have a `visible` flag for homepage/tag-cloud display.
 - Posts support **soft delete**: `deleted_at` column; admin delete moves to recycle bin (`GET /admin/posts?deleted=true`), restore = `POST /admin/posts/{id}/restore`, permanent = `DELETE /admin/posts/{id}/permanent`. Public lists, counts and stats all exclude soft-deleted posts — keep that filter when querying.
 - Homepage category tabs are driven by `route.query.category_id` (single source of truth) so the nav menu and homepage stay in sync — don't reintroduce local-only tab state.
-- Sidebar cards (`ProfileCard`/`HomeSidebar`), the notice bar and the search panel are all controlled by `site_*` config keys (see `seed.py` defaults); boolean configs arrive as strings ("true"/"false") — components must treat them as strings.
+- Sidebar cards (`ProfileCard`/`HomeSidebar`) and the search panel are controlled by `site_*` config keys (see `seed.py` defaults); boolean configs arrive as strings ("true"/"false") — components must treat them as strings. Parse them only via `frontend/src/utils/config.js` (`isEnabled`/`toNumber`). Notices and social links moved to their own tables (no more `notice_*`/`profile_links` config keys).
+- Navigation menus (`menu_items`): max **two levels** (enforced in `endpoints/menus.py`), the "首页" item is synthesized first by `GET /menus` and never stored; `type:'category'` must be top-level; legacy `site_menus` JSON migrates at startup (seed.py `_migrate_menus`, idempotent, invalid JSON = warn + skip); default menus are seeded into the table once (seed.py `_seed_default_menus`, config marker `menus_seeded` — never re-seeded after the user deletes them, and tests' lifespan may write this marker into the dev `data/blog.db`). Public tree must keep skipping hidden parents (with children) and the empty-table fallback — that's the config-breaks-but-site-lives guarantee. Header overflow collapsing lives in `composables/useNavOverflow.js` (clones the rendered nav DOM for widths, caches per item key in localStorage `blog_nav_item_widths`, first item never collapses).
+- Notices (`notices`): `GET /notices` returns enabled ordered by `type, sort_order, id`; page-type content is nulled in the list (detail `GET /notices/{id}` has it, disabled → 404); PUT with changed title/content auto-bumps `version` — frontend dismissal memory is `blog_notice_dismissed:{id}` = version in localStorage (`utils/notice.js`).
+- Social links (`social_links`): platform is a preset key or `custom` (with `label`); url must start with http(s):// or mailto:. Platform name/color/letter map lives in `frontend/src/utils/platforms.js`; nav icon registry lives in `frontend/src/utils/navIcons.js` (unknown icon names must render nothing, never throw).
+- Config batch update (`PUT /admin/site/config`) validates whitelisted keys via `app/core/config_validation.py` — any invalid value rejects the whole batch with 422 before writing anything. Unknown keys pass through.
 - Captcha: `GET /api/v1/auth/captcha` returns a PNG + `X-Captcha-Id` header; `POST /api/v1/auth/login` requires `captcha_id` + `captcha_code` fields. The backend skips captcha check when `captcha_id` is empty (backwards-compat for tests). The captcha store is an in-memory OrderedDict with a 5-minute TTL — not shared across workers.
 
 ## Gotchas (verified, do not "fix")
@@ -41,6 +45,10 @@ Personal blog: `backend/` (FastAPI + SQLite) and `frontend/` (Vue 3 + Vite + Ele
 - `tests/conftest.py` overrides `get_db` with an in-memory SQLite engine (`StaticPool`). The app lifespan still seeds the real `data/blog.db` during tests, but the test admin/config are seeded manually in the `db_session` fixture — add any new seed data there too.
 - `asyncio_mode = "auto"` is set; async fixtures/tests need no decorators.
 - Run tests from `backend/`: `uv run pytest`.
+
+## Documentation duty
+
+When a feature/workstream is completed, update `CHANGELOG.md` (reverse-chronological, `[x.y.z]` sections) and the affected parts of `docs/api.md`, `docs/architecture.md`, `README.md` and this file — the user requires doc updates together with the code.
 
 ## Style
 

@@ -12,13 +12,17 @@
 | GET | `/site/config` | 站点配置列表 |
 | GET | `/site/stats` | 站点统计（文章/分类/标签数、总阅读量、运行天数） |
 | GET | `/banners` | 轮播图列表（仅启用） |
-| GET | `/friends` | 友链列表 |
+| GET | `/friends` | 友链列表（含 `icon` 图标 URL，可空） |
 | GET | `/categories` | 分类列表（含文章数与 color/parent_id） |
 | GET | `/categories/tree` | 分类树（post_count 聚合子分类） |
 | GET | `/tags` | 标签列表（含文章数与 color） |
 | GET | `/posts` | 文章分页列表 |
 | GET | `/posts/{slug}` | 文章详情（浏览量 +1） |
 | GET | `/posts/{slug}/neighbors` | 文章上一篇/下一篇 |
+| GET | `/menus` | 导航菜单树（两级；首位固定拼接“首页”项；仅 visible，隐藏父连子剔除；表空回退默认菜单；默认菜单首次启动种入表内可后台管理，标记 `menus_seeded` 防重复回填） |
+| GET | `/social-links` | 社交链接{id, platform, label, url, sort_order}（仅 visible，按排序） |
+| GET | `/notices` | 启用公告列表（banner/dialog 含 content；page 的 content 为 null） |
+| GET | `/notices/{id}` | 公告详情（含 content；已停用返回 404） |
 
 ### 文章列表参数
 
@@ -49,7 +53,7 @@
 | PUT | `/admin/categories/{id}` | 更新分类 |
 | DELETE | `/admin/categories/{id}` | 删除分类 |
 | PUT | `/admin/site/config` | 批量更新站点配置，body 为 `[{key, value}]` |
-| POST | `/admin/friends` | 创建友链 |
+| POST | `/admin/friends` | 创建友链（name/url 必填，可选 description/icon/sort_order） |
 | PUT | `/admin/friends/{id}` | 更新友链 |
 | DELETE | `/admin/friends/{id}` | 删除友链 |
 | GET | `/admin/banners` | 轮播图管理列表（含禁用） |
@@ -57,6 +61,20 @@
 | PUT | `/admin/banners/{id}` | 更新轮播图 |
 | DELETE | `/admin/banners/{id}` | 删除轮播图 |
 | POST | `/admin/upload` | 上传图片（封面/轮播图），返回 `/uploads/...` 路径 |
+| GET | `/admin/menus` | 菜单管理列表（平铺，含隐藏） |
+| POST | `/admin/menus` | 创建菜单（校验：两级上限；link 路径须 `/` 开头；外链须 http(s)；category 必须顶级） |
+| PUT | `/admin/menus/{id}` | 更新菜单（删除父项会连带删除子项） |
+| DELETE | `/admin/menus/{id}` | 删除菜单（连带子项） |
+| GET | `/admin/social-links` | 社交链接管理列表（含隐藏） |
+| POST | `/admin/social-links` | 创建社交链接（url 须 http(s):// 或 mailto:） |
+| PUT | `/admin/social-links/{id}` | 更新社交链接 |
+| DELETE | `/admin/social-links/{id}` | 删除社交链接 |
+| GET | `/admin/notices` | 公告管理列表（含停用与全文） |
+| POST | `/admin/notices` | 创建公告（type: banner/dialog/page） |
+| PUT | `/admin/notices/{id}` | 更新公告（title/content 变化自动 version+1） |
+| DELETE | `/admin/notices/{id}` | 删除公告 |
+
+> 配置键白名单校验：`PUT /admin/site/config` 对 `site_accent_color`（#RGB/#RRGGBB）、`sidebar_tag_count`（1-30）校验，任一非法整批 422 且不写入；未知键放行。
 
 ## 文章对象字段
 

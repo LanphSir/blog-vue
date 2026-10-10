@@ -14,10 +14,10 @@
         target="_blank"
         rel="noopener"
         class="link-badge"
-        :style="platformStyle(link.platform)"
-        :title="platformName(link.platform)"
+        :style="badgeStyle(link)"
+        :title="badgeTitle(link)"
       >
-        {{ platformLetter(link.platform) }}
+        {{ badgeLetter(link) }}
       </a>
     </div>
   </div>
@@ -26,6 +26,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useConfigStore } from '@/stores/config'
+import { platformMeta } from '@/utils/platforms'
 
 const configStore = useConfigStore()
 
@@ -36,37 +37,26 @@ const links = computed(() => configStore.profileLinks())
 
 const initial = computed(() => name.value.slice(0, 1).toUpperCase())
 
-const PLATFORMS = {
-  github: { name: 'GitHub', color: '#333333', letter: 'G' },
-  juejin: { name: '掘金', color: '#1E80FF', letter: '掘' },
-  zhihu: { name: '知乎', color: '#0084FF', letter: '知' },
-  csdn: { name: 'CSDN', color: '#FC5531', letter: 'C' },
-  x: { name: 'X', color: '#000000', letter: 'X' },
-  email: { name: '邮箱', color: '#EA4335', letter: '@' },
-  wechat: { name: '微信', color: '#07C160', letter: '微' },
-  bilibili: { name: 'B 站', color: '#FB7299', letter: 'B' },
-}
-
-function platformStyle(platform) {
-  const key = String(platform || '').toLowerCase()
-  const meta = PLATFORMS[key]
+function badgeStyle(link) {
+  const meta = platformMeta(link.platform)
   if (!meta) {
     return { background: 'var(--blog-border)', color: 'var(--blog-text-secondary)' }
-  }
-  if (key === 'x' || key === 'github') {
-    return { background: meta.color, color: '#fff' }
   }
   return { background: meta.color, color: '#fff' }
 }
 
-function platformName(platform) {
-  const key = String(platform || '').toLowerCase()
-  return PLATFORMS[key]?.name || platform
+function badgeTitle(link) {
+  const meta = platformMeta(link.platform)
+  return meta?.name || link.label || link.platform
 }
 
-function platformLetter(platform) {
-  const key = String(platform || '').toLowerCase()
-  return PLATFORMS[key]?.letter || (platform || '?').slice(0, 1).toUpperCase()
+function badgeLetter(link) {
+  const meta = platformMeta(link.platform)
+  if (!meta) {
+    const seed = link.platform === 'custom' ? link.label : link.platform
+    return String(seed || '?').slice(0, 1).toUpperCase()
+  }
+  return meta.letter
 }
 </script>
 

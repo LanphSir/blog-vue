@@ -6,10 +6,11 @@
       <div class="container header-inner">
         <router-link to="/" class="logo">{{ configStore.siteName() }}</router-link>
 
-        <nav class="nav">
-          <template v-for="menu in menus" :key="menu.label + (menu.path || menu.id || '')">
+        <nav ref="navRef" class="nav">
+          <template v-for="menu in visibleItems" :key="menu._key">
             <el-dropdown v-if="menu.type === 'category' && categoryTree.length" trigger="hover">
               <span class="nav-link" :class="{ active: isCategoryActive() }">
+                <el-icon v-if="resolveIcon(menu.icon)" class="nav-icon"><component :is="resolveIcon(menu.icon)" /></el-icon>
                 {{ menu.label }}
                 <el-icon class="caret"><ArrowDown /></el-icon>
               </span>
@@ -45,24 +46,57 @@
 
             <el-dropdown v-else-if="menu.children && menu.children.length" trigger="hover">
               <span class="nav-link" :class="{ active: isChildActive(menu.children) }">
+                <el-icon v-if="resolveIcon(menu.icon)" class="nav-icon"><component :is="resolveIcon(menu.icon)" /></el-icon>
                 {{ menu.label }}
                 <el-icon class="caret"><ArrowDown /></el-icon>
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item
-                    v-for="child in menu.children"
-                    :key="child.path"
-                    @click="$router.push(child.path)"
+                    v-for="(child, ci) in menu.children"
+                    :key="ci + '-' + child.label"
+                    @click="goChild(child)"
                   >
+                    <el-icon v-if="resolveIcon(child.icon)" class="nav-icon"><component :is="resolveIcon(child.icon)" /></el-icon>
                     {{ child.label }}
+                    <el-icon v-if="child.is_external" class="ext-icon"><TopRight /></el-icon>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
 
-            <router-link v-else :to="menu.path" class="nav-link" :class="{ active: isLinkActive(menu) }">{{ menu.label }}</router-link>
+            <a
+              v-else-if="menu.is_external"
+              :href="menu.path"
+              target="_blank"
+              rel="noopener"
+              class="nav-link"
+            >
+              <el-icon v-if="resolveIcon(menu.icon)" class="nav-icon"><component :is="resolveIcon(menu.icon)" /></el-icon>
+              {{ menu.label }}
+              <el-icon class="ext-icon"><TopRight /></el-icon>
+            </a>
+
+            <router-link v-else :to="menu.path" class="nav-link" :class="{ active: isLinkActive(menu) }">
+              <el-icon v-if="resolveIcon(menu.icon)" class="nav-icon"><component :is="resolveIcon(menu.icon)" /></el-icon>
+              {{ menu.label }}
+            </router-link>
           </template>
+
+          <el-dropdown v-if="hasHidden" trigger="click" @command="onMoreNav">
+            <span class="nav-link nav-more" :class="{ active: moreActive }" aria-label="更多导航">
+              <el-icon class="nav-more-icon"><MoreFilled /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-for="menu in hiddenItems" :key="menu._key" :command="menu">
+                  <el-icon v-if="resolveIcon(menu.icon)" class="nav-icon"><component :is="resolveIcon(menu.icon)" /></el-icon>
+                  {{ menu.label }}
+                  <el-icon v-if="menu.is_external" class="ext-icon"><TopRight /></el-icon>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </nav>
 
         <div class="actions">
@@ -96,7 +130,9 @@
             target="_blank"
             rel="noopener"
             class="friend-link"
-          >{{ link.name }}</a>
+          >
+            <img v-if="link.icon" :src="link.icon" class="friend-icon" alt="" />{{ link.name }}
+          </a>
         </div>
       </div>
       <div class="container">
@@ -112,14 +148,18 @@
     </transition>
 
     <GlobalSearch ref="searchRef" />
+    <NoticeDialog />
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Search, Top } from '@element-plus/icons-vue'
+import { ArrowDown, MoreFilled, Search, Top, TopRight } from '@element-plus/icons-vue'
+import { resolveIcon } from '@/utils/navIcons'
+import { useNavOverflow } from '@/composables/useNavOverflow'
 import NoticeBar from '@/components/NoticeBar.vue'
+import NoticeDialog from '@/components/NoticeDialog.vue'
 import GlobalSearch from '@/components/GlobalSearch.vue'
 import { getFriends } from '@/api/site'
 import { getCategoryTree } from '@/api/categories'
@@ -134,8 +174,33 @@ const showTop = ref(false)
 const friends = ref([])
 const categoryTree = ref([])
 const searchRef = ref(null)
+const navRef = ref(null)
 
-const menus = computed(() => configStore.siteMenus())
+const navItems = computed(() =>
+  configStore.siteMenus().map((menu, i) => ({ ...menu, _key: `${i}:${menu.label}:${menu.path || menu.type}` }))
+)
+const { visibleItems, hiddenItems, hasHidden } = useNavOverflow(navRef, navItems)
+
+const moreActive = computed(() =>
+  hiddenItems.value.some((menu) => {
+    if (menu.type === 'category') return isCategoryActive()
+    if (menu.children && menu.children.length) return isChildActive(menu.children)
+    return !menu.is_external && isLinkActive(menu)
+  })
+)
+
+function onMoreNav(menu) {
+  if (menu.type === 'category') {
+    router.push({ name: 'home' })
+    return
+  }
+  if (menu.is_external && menu.path) {
+    window.open(menu.path, '_blank', 'noopener')
+    return
+  }
+  const target = menu.path || menu.children?.[0]?.path
+  if (target) router.push(target)
+}
 
 function onScroll() {
   showTop.value = window.scrollY > 400
@@ -156,6 +221,14 @@ function isCategoryActive() {
 function isLinkActive(menu) {
   if (menu.path === '/') return route.path === '/'
   return route.path.startsWith(menu.path)
+}
+
+function goChild(child) {
+  if (child.is_external) {
+    window.open(child.path, '_blank', 'noopener')
+    return
+  }
+  router.push(child.path)
 }
 
 function goCategory(id) {
@@ -222,12 +295,22 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
+  margin: 0 20px;
+  overflow: hidden;
+}
+
+.nav-more-icon {
+  font-size: 16px;
 }
 
 .nav-link {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
   padding: 6px 14px;
   border-radius: 6px;
   color: var(--blog-text-secondary);
@@ -244,6 +327,17 @@ onBeforeUnmount(() => {
 
 .caret {
   font-size: 12px;
+}
+
+.nav-icon {
+  margin-right: 4px;
+  font-size: 14px;
+}
+
+.ext-icon {
+  margin-left: 2px;
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .cat-root-label {
@@ -348,9 +442,19 @@ onBeforeUnmount(() => {
 }
 
 .friend-link {
+  display: inline-flex;
+  align-items: center;
   font-size: 13px;
   color: var(--blog-text-secondary);
   transition: color 0.2s;
+}
+
+.friend-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: cover;
+  margin-right: 5px;
 }
 
 .friend-link:hover {

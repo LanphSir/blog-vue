@@ -39,8 +39,12 @@ SQLite
 - `posts`：文章（标题、Slug、封面、正文 Markdown、摘要、状态、浏览量、置顶、分类、发布时间）
 - `categories`：分类（名称、Slug、排序）
 - `tags`：标签（名称、Slug），与文章多对多
-- `site_configs`：键值型站点配置（站点名、描述、Logo、备案、页脚）
-- `friend_links`：友链（名称、地址、描述、排序）
+- `site_configs`：键值型站点配置（站点名、描述、Logo、备案、页脚等标量配置；布尔值以字符串 "true"/"false" 存储）
+- `friend_links`：友链（名称、地址、描述、图标 URL（可空，经 `/admin/upload` 上传）、排序；迁移 `8a2f1c3d4b5e`）
+- `menu_items`：导航菜单（label/path/icon/type[link|category]/is_external/parent_id 两级/sort_order/visible；“首页”项由接口固定拼接不落库；默认 4 项首次启动种入一次，配置标记 `menus_seeded` 防删空后回填）
+- `social_links`：社交链接（platform 预置或 custom+label/url/visible/sort_order，驱动简介卡片图标）
+- `notices`：公告（title/content/type[banner|dialog|page]/enabled/version/sort_order；内容变更自动升版本触发重推）
+- 数据迁移：旧 `site_menus`/`profile_links` JSON 配置与旧公告三键在启动时一次性迁移入对应表（解析失败仅告警，幂等）；迁移后旧键不再出现在默认配置与管理表单
 
 ## 4. 统一响应格式
 
@@ -61,6 +65,7 @@ SQLite
 
 ## 7. 前端状态与路由
 
-- **Pinia**：`auth`（登录态/用户）、`config`（站点配置）、`theme`（暗色模式）。
+- **Pinia**：`auth`（登录态/用户）、`config`（站点配置 + 并行聚合 /menus、/social-links、/notices，各自失败独立回退：默认菜单/空列表）、`theme`（暗色模式）。
+- **健壮性防线**：所有公网读取处均有默认值回退（菜单表空→内置默认菜单、颜色非法→主题蓝、布尔字符串统一 `utils/config.js` 解析）；图标名不在 `utils/navIcons.js` 注册表时不渲染图标而非报错；配置更新后端白名单校验 + 前端同规则预校验。
 - **路由**：`/` 前台（FrontLayout 包裹），`/admin` 后台（AdminLayout 包裹 + 认证守卫），`/admin/login` 登录页。
 - **Axios**：请求拦截附带 token，响应拦截统一解包 `{code,message,data}` 并处理 401 跳转登录。

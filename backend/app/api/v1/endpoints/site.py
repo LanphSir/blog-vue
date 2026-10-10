@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import CurrentUser, DbDep
+from app.core.config_validation import check_config_value
 from app.crud import site as site_crud
 from app.models.site import Banner, FriendLink
 from app.schemas.common import ApiResponse, ok
@@ -31,6 +32,16 @@ async def get_site_config(db: DbDep) -> ApiResponse[list[ConfigOut]]:
 async def update_site_config(
     payload: list[ConfigItem], db: DbDep, _: CurrentUser
 ) -> ApiResponse[list[ConfigOut]]:
+    errors = [
+        f"{item.key}: {error}"
+        for item in payload
+        if (error := check_config_value(item.key, item.value))
+    ]
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="；".join(errors),
+        )
     items = []
     for item in payload:
         saved = await site_crud.set_config(db, item.key, item.value)

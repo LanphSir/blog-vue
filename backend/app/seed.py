@@ -3,10 +3,12 @@
 Called automatically on application startup; safe to re-run (idempotent).
 """
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
@@ -14,7 +16,7 @@ from app.core.security import hash_password
 from app.crud import site as site_crud
 from app.crud import user as user_crud
 from app.models.post import Category, Post, Tag
-from app.models.site import Banner, FriendLink, SiteConfig
+from app.models.site import Banner, FriendLink, MenuItem, Notice, SiteConfig, SocialLink
 
 logger = logging.getLogger("blog")
 
@@ -26,19 +28,13 @@ DEFAULT_SITE_CONFIG = {
     "site_author": "站长",
     "site_avatar": "",
     "site_bio": "热爱编程与写作，记录技术、生活与思考。",
-    "profile_links": "",
     "profile_visible": "true",
     "sidebar_tags_visible": "true",
     "sidebar_tag_count": "8",
     "sidebar_recent_visible": "true",
-    "notice_text": "",
-    "notice_enabled": "true",
-    "notice_version": "1",
     "site_logo": "",
     "icp": "",
     "footer_text": "Powered by Vue3 + FastAPI",
-    "site_menus": "",
-    "homepage_section_count": "4",
 }
 
 DEMO_CATEGORIES = [
@@ -563,6 +559,140 @@ DEMO_FRIEND_LINKS = [
 ]
 
 
+DEFAULT_MENU_ROWS = [
+    {"label": "文章", "path": "/posts", "icon": "Document", "sort_order": 1},
+    {"label": "标签", "path": "/tags", "icon": "PriceTag", "sort_order": 2},
+    {"label": "友链", "path": "/friends", "icon": "Link", "sort_order": 3},
+    {"label": "关于", "path": "/about", "icon": "InfoFilled", "sort_order": 4},
+]
+
+
+async def _seed_default_menus(db: AsyncSession) -> None:
+    """Turn the previously hardcoded default nav into manageable table rows (once per install)."""
+    marker = await site_crud.get_config(db, "menus_seeded")
+    if marker is not None:
+        return
+    count = (await db.execute(select(func.count(MenuItem.id)))).scalar_one()
+    if count == 0:
+        for row in DEFAULT_MENU_ROWS:
+            db.add(MenuItem(**row))
+        logger.info("Seeded default navigation menus into menu_items")
+    await site_crud.set_config(db, "menus_seeded", "true")
+    await db.commit()
+
+
+async def _migrate_menus(db: AsyncSession) -> None:
+    """Move the legacy site_menus JSON config into the menu_items table (one-shot, idempotent)."""
+    count = (await db.execute(select(func.count(MenuItem.id)))).scalar_one()
+    if count > 0:
+        return
+    item = await site_crud.get_config(db, "site_menus")
+    if item is None or not item.value.strip():
+        return
+    try:
+        data = json.loads(item.value)
+    except json.JSONDecodeError:
+        logger.warning("Skip site_menus migration: invalid JSON")
+        return
+    if not isinstance(data, list) or not data:
+        return
+
+    for order, entry in enumerate(data, start=1):
+        if not isinstance(entry, dict) or not entry.get("label"):
+            continue
+        if entry.get("type") == "category":
+            db.add(MenuItem(label=str(entry["label"]), type="category", sort_order=order))
+            continue
+        path = entry.get("path")
+        if not path:
+            continue
+        parent = MenuItem(label=str(entry["label"]), path=str(path), sort_order=order)
+        db.add(parent)
+        await db.flush()
+        children = entry.get("children")
+        if isinstance(children, list):
+            for child_order, child in enumerate(children, start=1):
+                if not isinstance(child, dict) or not child.get("label") or not child.get("path"):
+                    continue
+                db.add(
+                    MenuItem(
+                        label=str(child["label"]),
+                        path=str(child["path"]),
+                        parent_id=parent.id,
+                        sort_order=child_order,
+                    )
+                )
+    await db.commit()
+    logger.info("Migrated legacy site_menus JSON into menu_items")
+
+
+def _legacy_visible(entry: dict) -> bool:
+    value = entry.get("visible", True)
+    if isinstance(value, str):
+        return value.lower() not in ("false", "0")
+    return bool(value)
+
+
+async def _migrate_social_links(db: AsyncSession) -> None:
+    """Move the legacy profile_links JSON config into the social_links table (idempotent)."""
+    count = (await db.execute(select(func.count(SocialLink.id)))).scalar_one()
+    if count > 0:
+        return
+    item = await site_crud.get_config(db, "profile_links")
+    if item is None or not item.value.strip():
+        return
+    try:
+        data = json.loads(item.value)
+    except json.JSONDecodeError:
+        logger.warning("Skip profile_links migration: invalid JSON")
+        return
+    if not isinstance(data, list) or not data:
+        return
+
+    for order, entry in enumerate(data, start=1):
+        if not isinstance(entry, dict) or not entry.get("platform") or not entry.get("url"):
+            continue
+        db.add(
+            SocialLink(
+                platform=str(entry["platform"]),
+                label=entry.get("label"),
+                url=str(entry["url"]),
+                visible=_legacy_visible(entry),
+                sort_order=order,
+            )
+        )
+    await db.commit()
+    logger.info("Migrated legacy profile_links JSON into social_links")
+
+
+async def _migrate_notice(db: AsyncSession) -> None:
+    """Turn the legacy notice_text/enabled/version config trio into one banner notice."""
+    count = (await db.execute(select(func.count(Notice.id)))).scalar_one()
+    if count > 0:
+        return
+    item = await site_crud.get_config(db, "notice_text")
+    if item is None or not item.value.strip():
+        return
+    version_item = await site_crud.get_config(db, "notice_version")
+    enabled_item = await site_crud.get_config(db, "notice_enabled")
+    try:
+        version = max(1, int(version_item.value)) if version_item and version_item.value else 1
+    except ValueError:
+        version = 1
+    db.add(
+        Notice(
+            title="网站公告",
+            content=item.value,
+            type="banner",
+            enabled=_legacy_visible({"visible": enabled_item.value if enabled_item else True}),
+            version=version,
+            sort_order=1,
+        )
+    )
+    await db.commit()
+    logger.info("Migrated legacy notice config into notices")
+
+
 async def seed_default_data() -> None:
     async with AsyncSessionLocal() as db:
         user = await user_crud.get_by_username(db, settings.init_admin_username)
@@ -578,6 +708,11 @@ async def seed_default_data() -> None:
             if key not in existing_keys:
                 await site_crud.set_config(db, key, value)
         await db.commit()
+
+        await _migrate_menus(db)
+        await _seed_default_menus(db)
+        await _migrate_social_links(db)
+        await _migrate_notice(db)
 
 
 async def seed_demo_data() -> None:

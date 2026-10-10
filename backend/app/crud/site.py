@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.post import Category, Post, Tag
-from app.models.site import Banner, FriendLink, SiteConfig
+from app.models.site import Banner, FriendLink, MenuItem, Notice, SiteConfig, SocialLink
 
 
 async def get_config(db: AsyncSession, key: str) -> SiteConfig | None:
@@ -49,6 +49,39 @@ async def list_banners(db: AsyncSession, enabled_only: bool = False) -> list[Ban
 
 async def get_banner(db: AsyncSession, banner_id: int) -> Banner | None:
     return await db.get(Banner, banner_id)
+
+
+async def list_menus(db: AsyncSession) -> list[MenuItem]:
+    result = await db.execute(select(MenuItem).order_by(MenuItem.sort_order, MenuItem.id))
+    return list(result.scalars().all())
+
+
+async def get_menu(db: AsyncSession, menu_id: int) -> MenuItem | None:
+    return await db.get(MenuItem, menu_id)
+
+
+async def list_social_links(db: AsyncSession, visible_only: bool = False) -> list[SocialLink]:
+    query = select(SocialLink)
+    if visible_only:
+        query = query.where(SocialLink.visible.is_(True))
+    result = await db.execute(query.order_by(SocialLink.sort_order, SocialLink.id))
+    return list(result.scalars().all())
+
+
+async def get_social_link(db: AsyncSession, link_id: int) -> SocialLink | None:
+    return await db.get(SocialLink, link_id)
+
+
+async def list_notices(db: AsyncSession, enabled_only: bool = False) -> list[Notice]:
+    query = select(Notice)
+    if enabled_only:
+        query = query.where(Notice.enabled.is_(True))
+    result = await db.execute(query.order_by(Notice.type, Notice.sort_order, Notice.id))
+    return list(result.scalars().all())
+
+
+async def get_notice(db: AsyncSession, notice_id: int) -> Notice | None:
+    return await db.get(Notice, notice_id)
 
 
 async def get_site_stats(db: AsyncSession) -> dict[str, int]:

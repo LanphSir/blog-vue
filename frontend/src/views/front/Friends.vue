@@ -3,7 +3,10 @@
     <h2 class="page-title">友情链接</h2>
     <div class="friend-grid">
       <a v-for="link in links" :key="link.id" :href="link.url" target="_blank" rel="noopener" class="card friend-card">
-        <div class="name">{{ link.name }}</div>
+        <div class="name">
+          <img v-if="link.icon" :src="link.icon" class="friend-icon" alt="" />
+          {{ link.name }}
+        </div>
         <div class="desc">{{ link.description || link.url }}</div>
       </a>
     </div>
@@ -44,8 +47,19 @@ onMounted(async () => {
 }
 
 .name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
   margin-bottom: 6px;
+}
+
+.friend-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .desc {

@@ -45,6 +45,7 @@ import { useReveal } from '@/composables/useReveal'
 import { getTags } from '@/api/categories'
 import { getPosts } from '@/api/posts'
 import { useConfigStore } from '@/stores/config'
+import { isEnabled, toNumber } from '@/utils/config'
 
 const router = useRouter()
 const configStore = useConfigStore()
@@ -54,16 +55,12 @@ const recentPosts = ref([])
 
 useReveal()
 
-function isEnabled(value) {
-  return value === undefined || value === '' || value === 'true' || value === '1' || value === true
-}
-
 const profileVisible = computed(() => isEnabled(configStore.configs.profile_visible))
 const tagsVisible = computed(() => isEnabled(configStore.configs.sidebar_tags_visible))
 const recentVisible = computed(() => isEnabled(configStore.configs.sidebar_recent_visible))
 const tagLimit = computed(() => {
-  const n = Number(configStore.configs.sidebar_tag_count || 8)
-  return Number.isFinite(n) && n > 0 ? n : 8
+  const n = toNumber(configStore.configs.sidebar_tag_count, 8)
+  return n > 0 ? n : 8
 })
 
 const displayTags = computed(() => allTags.value.filter((t) => t.visible !== false).slice(0, tagLimit.value))

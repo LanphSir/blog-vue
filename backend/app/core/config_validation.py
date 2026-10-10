@@ -1,0 +1,28 @@
+"""Whitelisted validation rules for well-known site config keys.
+
+Unknown keys pass through so future config additions never block saves.
+"""
+
+import re
+
+_HEX_COLOR = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def _check_int_range(value: str, low: int, high: int, label: str) -> str | None:
+    try:
+        number = int(value)
+    except ValueError:
+        return f"{label}必须是整数"
+    if not low <= number <= high:
+        return f"{label}必须在 {low}-{high} 之间"
+    return None
+
+
+def check_config_value(key: str, value: str) -> str | None:
+    """Return an error message when the value is invalid, otherwise None."""
+    if key == "site_accent_color" and value:
+        if not _HEX_COLOR.match(value):
+            return "主题强调色必须是 #RGB 或 #RRGGBB 格式"
+    elif key == "sidebar_tag_count" and value:
+        return _check_int_range(value, 1, 30, "标签云数量")
+    return None
