@@ -6,7 +6,7 @@
         <el-form label-width="140px" :model="form">
           <ConfigFieldItems :fields="basicFields" :form="form" />
           <el-form-item label="Logo 图片">
-            <MediaPicker v-model="form.site_logo" tip="站点 Logo，支持上传或从媒体库选取" :preview-width="96" :preview-height="40" />
+            <MediaPicker v-model="form.site_logo" tip="站点 Logo，设置后展示在导航栏左侧，未设置时显示站点名称" :preview-width="96" :preview-height="40" />
           </el-form-item>
         </el-form>
       </el-tab-pane>

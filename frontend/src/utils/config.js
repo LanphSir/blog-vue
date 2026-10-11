@@ -7,3 +7,7 @@ export function toNumber(value, fallback) {
   const n = Number(value)
   return Number.isFinite(n) && value !== '' && value !== null ? n : fallback
 }
+
+export function isPlaceholderUrl(value) {
+  return /^(https?:\/\/)?example\./i.test(String(value || '').trim())
+}

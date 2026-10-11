@@ -11,22 +11,46 @@
               class="search-input"
               placeholder="搜索文章标题或内容…"
               @input="onInput"
-              @keydown.enter="goFirst"
+              @keydown.down.prevent="move(1)"
+              @keydown.up.prevent="move(-1)"
+              @keydown.enter.prevent="goFirst"
             />
             <kbd class="search-esc">ESC</kbd>
           </div>
 
-          <div class="search-results">
+          <div ref="resultsWrap" class="search-results">
             <div v-if="loading" class="search-status">搜索中…</div>
-            <div v-else-if="!keyword" class="search-status">输入关键词开始搜索，支持 Ctrl/Cmd + K 唤起</div>
+            <template v-else-if="!keyword">
+              <div v-if="history.length" class="search-history">
+                <div class="history-head">
+                  <span class="history-title">搜索历史</span>
+                  <button class="history-clear" @click="history = clearHistory()">清空</button>
+                </div>
+                <div class="history-chips">
+                  <span v-for="item in history" :key="item" class="history-chip" @click="useHistory(item)">
+                    <el-icon class="chip-icon"><Clock /></el-icon>
+                    <span class="chip-text">{{ item }}</span>
+                    <el-icon class="chip-del" title="删除" @click.stop="history = removeHistory(item)"
+                      ><Close
+                    /></el-icon>
+                  </span>
+                </div>
+              </div>
+              <div v-else class="search-status">输入关键词开始搜索，支持 Ctrl/Cmd + K 唤起</div>
+            </template>
             <div v-else-if="!results.length" class="search-status">未找到相关文章</div>
             <button
-              v-for="post in results"
+              v-for="(post, i) in results"
               :key="post.id"
               class="result-item"
+              :class="{ active: i === activeIndex }"
+              @mouseenter="activeIndex = i"
               @click="goDetail(post)"
             >
-              <div class="result-title" v-html="highlight(post.title)" />
+              <div class="result-line">
+                <div class="result-title" v-html="highlight(post.title)" />
+                <kbd v-if="i === activeIndex" class="result-enter">↵</kbd>
+              </div>
               <div class="result-summary" v-html="highlight(post.summary || '')" />
               <div class="result-meta">
                 <span v-if="post.category?.name" class="result-cat">{{ post.category.name }}</span>
@@ -45,10 +69,11 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search } from '@element-plus/icons-vue'
+import { Clock, Close, Search } from '@element-plus/icons-vue'
 import { getPosts } from '@/api/posts'
+import { addHistory, clearHistory, loadHistory, removeHistory } from '@/utils/searchHistory'
 
 const router = useRouter()
 const visible = ref(false)
@@ -56,7 +81,35 @@ const keyword = ref('')
 const results = ref([])
 const loading = ref(false)
 const inputRef = ref(null)
+const history = ref(loadHistory())
+const resultsWrap = ref(null)
+const activeIndex = ref(0)
 let debounceTimer = null
+
+watch(results, () => {
+  activeIndex.value = 0
+})
+
+function move(step) {
+  const n = results.value.length
+  if (!n) return
+  activeIndex.value = (activeIndex.value + step + n) % n
+  nextTick(() => {
+    resultsWrap.value?.querySelectorAll('.result-item')[activeIndex.value]?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+function useHistory(word) {
+  keyword.value = word
+  history.value = addHistory(word)
+  search()
+  inputRef.value?.focus()
+}
+
+function recordHistory() {
+  const kw = keyword.value.trim()
+  if (kw) history.value = addHistory(kw)
+}
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleDateString('zh-CN') : ''
@@ -91,16 +144,18 @@ function onInput() {
 }
 
 function goFirst() {
-  if (results.value.length) goDetail(results.value[0])
+  if (results.value.length) goDetail(results.value[activeIndex.value] ?? results.value[0])
   else if (keyword.value.trim()) goSearchPage()
 }
 
 function goDetail(post) {
+  recordHistory()
   close()
   router.push({ name: 'post-detail', params: { slug: post.slug } })
 }
 
 function goSearchPage() {
+  recordHistory()
   close()
   router.push({ name: 'posts', query: { keyword: keyword.value.trim() } })
 }
@@ -135,16 +190,95 @@ defineExpose({ open, close })
 </script>
 
 <style scoped>
+.search-history {
+  padding: 12px 14px 16px;
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.history-title {
+  font-size: 12px;
+  color: var(--blog-text-secondary);
+}
+
+.history-clear {
+  border: none;
+  background: transparent;
+  color: var(--blog-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.history-clear:hover {
+  color: var(--blog-primary);
+}
+
+.history-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 5px 10px;
+  border: 1px solid var(--blog-border);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--blog-text);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.history-chip:hover {
+  color: var(--blog-primary);
+  border-color: var(--blog-primary);
+}
+
+.chip-icon {
+  font-size: 12px;
+  color: var(--blog-text-secondary);
+}
+
+.chip-text {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-del {
+  font-size: 12px;
+  color: var(--blog-text-secondary);
+  border-radius: 50%;
+}
+
+.chip-del:hover {
+  color: #f56c6c;
+}
+
 .search-overlay {
   position: fixed;
   inset: 0;
-  z-index: 2000;
-  background: rgba(0, 0, 0, 0.45);
+  /* 高于 md-editor-v3（10002/20000）与 medium-zoom（100001）等页内一切浮层 */
+  z-index: 110000;
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding: 12vh 16px 0;
-  backdrop-filter: blur(2px);
 }
 
 .search-panel {
@@ -211,15 +345,36 @@ defineExpose({ open, close })
   cursor: pointer;
 }
 
-.result-item:hover {
+.result-item:hover,
+.result-item.active {
   background: color-mix(in srgb, var(--blog-primary) 8%, transparent);
+}
+
+.result-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.result-enter {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 1px 7px;
+  border: 1px solid var(--blog-border);
+  border-radius: 4px;
+  color: var(--blog-text-secondary);
+  background: var(--blog-bg);
 }
 
 .result-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--blog-text);
-  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .result-summary {

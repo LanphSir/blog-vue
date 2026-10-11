@@ -4,7 +4,10 @@
 
     <header class="site-header">
       <div class="container header-inner">
-        <router-link to="/" class="logo">{{ configStore.siteName() }}</router-link>
+        <router-link to="/" class="logo" :title="configStore.siteName()">
+          <img v-if="logoUrl" :src="logoUrl" class="logo-img" :alt="configStore.siteName()" />
+          <template v-else>{{ configStore.siteName() }}</template>
+        </router-link>
 
         <nav ref="navRef" class="nav">
           <template v-for="menu in visibleItems" :key="menu._key">
@@ -137,7 +140,14 @@
       </div>
       <div class="container">
         <span>{{ configStore.configs.footer_text }}</span>
-        <span v-if="configStore.configs.icp" class="icp">{{ configStore.configs.icp }}</span>
+        <a
+          v-if="configStore.configs.icp"
+          class="icp"
+          href="https://beian.miit.gov.cn/#/Integrated/index"
+          target="_blank"
+          rel="noopener noreferrer"
+          >{{ configStore.configs.icp }}</a
+        >
       </div>
     </footer>
 
@@ -157,6 +167,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowDown, MoreFilled, Search, Top, TopRight } from '@element-plus/icons-vue'
 import { resolveIcon } from '@/utils/navIcons'
+import { isPlaceholderUrl } from '@/utils/config'
 import { useNavOverflow } from '@/composables/useNavOverflow'
 import NoticeBar from '@/components/NoticeBar.vue'
 import NoticeDialog from '@/components/NoticeDialog.vue'
@@ -169,6 +180,11 @@ import { useThemeStore } from '@/stores/theme'
 const route = useRoute()
 const router = useRouter()
 const configStore = useConfigStore()
+
+const logoUrl = computed(() => {
+  const v = (configStore.configs.site_logo || '').trim()
+  return v && !isPlaceholderUrl(v) ? v : ''
+})
 const themeStore = useThemeStore()
 const showTop = ref(false)
 const friends = ref([])
@@ -289,6 +305,14 @@ onBeforeUnmount(() => {
   font-size: 22px;
   font-weight: 700;
   color: var(--blog-primary);
+}
+
+.logo-img {
+  display: block;
+  height: 34px;
+  max-width: 160px;
+  object-fit: contain;
+  border-radius: var(--blog-radius-sm);
 }
 
 .nav {
@@ -421,6 +445,12 @@ onBeforeUnmount(() => {
 
 .icp {
   margin-left: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.icp:hover {
+  text-decoration: underline;
 }
 
 .footer-friends {
