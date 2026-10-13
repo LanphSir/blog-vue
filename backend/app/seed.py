@@ -28,6 +28,40 @@ from app.models.site import (
 
 logger = logging.getLogger("blog")
 
+ABOUT_MARKDOWN_TEMPLATE = """
+你好，我是这里的站长——欢迎来到我在互联网上的一小块自留地。
+
+## 我在做什么
+
+白天以软件开发为生，折腾**后端与分布式系统**；业余时间写前端、捣鼓 homelab 和各种小工具。
+信奉一句话：能把麻烦事自动化掉，就不该第二次手动做。
+
+## 这里会写什么
+
+- **技术笔记** —— 工作里踩过的坑：后端、数据库、部署，以及修 bug 的血泪史
+- **工具与效率** —— 我真实在用的工具和打磨过的工作流，希望能帮你少走弯路
+- **生活与思考** —— 跑步、读书、和一些值得记下来的瞬间
+
+不承诺固定更新频率，但承诺只写对读者有用的内容。
+
+## 关于本站
+
+这个博客是完全自建、不依赖任何第三方平台的小站：
+
+| 部分 | 技术 |
+| --- | --- |
+| 前端 | Vue 3 + Vite + Element Plus |
+| 后端 | FastAPI + SQLAlchemy (async) |
+| 数据库 | SQLite |
+| 部署 | Docker + Nginx |
+
+## 找到我
+
+最方便的方式是点击本页的社交图标（GitHub、邮箱等），也欢迎在任意文章下留言，评论我都会看。
+
+> 这段文字可以在后台「站点配置 → 基础信息 → 关于我介绍」中修改，换成你自己的故事吧。
+"""
+
 DEFAULT_SITE_CONFIG = {
     "site_name": "我的个人博客",
     "site_description": "记录技术、生活与思考",
@@ -41,8 +75,10 @@ DEFAULT_SITE_CONFIG = {
     "sidebar_tag_count": "8",
     "sidebar_recent_visible": "true",
     "site_logo": "",
+    "site_background": "none",
     "icp": "",
     "footer_text": "Powered by Vue3 + FastAPI",
+    "site_about_markdown": ABOUT_MARKDOWN_TEMPLATE.strip(),
 }
 
 DEMO_CATEGORIES = [

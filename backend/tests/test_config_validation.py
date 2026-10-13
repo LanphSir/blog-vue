@@ -64,3 +64,20 @@ def test_valid_values_and_unknown_keys_accepted(client):
     assert _config_value(client, "homepage_section_count") == "6"
     assert _config_value(client, "sidebar_tag_count") == "12"
     assert _config_value(client, "brand_new_key") == "anything goes"
+
+
+def test_background_enum_validation(client):
+    headers = _login(client)
+    bad = client.put(
+        "/api/v1/admin/site/config",
+        headers=headers,
+        json=[{"key": "site_background", "value": "starry"}],
+    )
+    assert bad.status_code == 422
+    good = client.put(
+        "/api/v1/admin/site/config",
+        headers=headers,
+        json=[{"key": "site_background", "value": "line"}],
+    )
+    assert good.status_code == 200
+    assert _config_value(client, "site_background") == "line"

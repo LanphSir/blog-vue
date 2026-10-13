@@ -60,6 +60,7 @@ export const useConfigStore = defineStore('config', () => {
     }
     configs.value = map
     applyAccentColor()
+    applyBackground()
     setSiteName(map.site_name)
     await Promise.all([menusReq, linksReq, noticesReq])
   }
@@ -67,6 +68,13 @@ export const useConfigStore = defineStore('config', () => {
   function applyAccentColor() {
     const color = accentColor()
     document.documentElement.style.setProperty('--blog-primary', color)
+  }
+
+  const BACKGROUND_KEYS = ['none', 'grid', 'aurora', 'dots', 'topo', 'geek', 'line']
+
+  function applyBackground() {
+    const key = configs.value.site_background
+    document.documentElement.dataset.bg = BACKGROUND_KEYS.includes(key) ? key : 'none'
   }
 
   return {
@@ -84,6 +92,7 @@ export const useConfigStore = defineStore('config', () => {
     dialogNotice,
     fetchConfig,
     applyAccentColor,
+    applyBackground,
   }
 })
 

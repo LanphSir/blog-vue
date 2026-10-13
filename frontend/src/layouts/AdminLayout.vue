@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -47,7 +47,13 @@ onMounted(() => {
   if (!authStore.user) {
     authStore.fetchUser().catch(() => {})
   }
-  configStore.fetchConfig()
+  configStore.fetchConfig().then(() => {
+    document.documentElement.dataset.bg = 'none'
+  })
+})
+
+onUnmounted(() => {
+  configStore.applyBackground()
 })
 
 function handleLogout() {

@@ -18,6 +18,21 @@
             <span class="accent-preview" :style="{ background: form.site_accent_color || '#2563eb' }" />
             <span class="accent-hint">当前强调色：{{ form.site_accent_color || '#2563eb' }}</span>
           </el-form-item>
+          <el-form-item label="页面背景">
+            <div class="bg-picker">
+              <button
+                v-for="opt in bgOptions"
+                :key="opt.key"
+                type="button"
+                class="bg-option"
+                :class="{ selected: (form.site_background || 'none') === opt.key }"
+                @click="form.site_background = opt.key"
+              >
+                <span class="bg-thumb" :class="'thumb-' + opt.key" />
+                <span class="bg-label">{{ opt.label }}</span>
+              </button>
+            </div>
+          </el-form-item>
         </el-form>
       </el-tab-pane>
 
@@ -101,6 +116,11 @@
           </div>
         </div>
       </el-tab-pane>
+
+      <el-tab-pane label="关于我" name="about">
+        <p class="about-hint">以下内容展示在前台「关于」页的自我介绍区，支持 Markdown；留空则显示站点描述。</p>
+        <MarkdownEditor v-model="form.site_about_markdown" class="about-editor" />
+      </el-tab-pane>
     </el-tabs>
 
     <el-button type="primary" :loading="saving" class="save-btn" @click="handleSave">保存配置</el-button>
@@ -112,6 +132,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElCollapseTransition, ElMessage } from 'element-plus'
 import ConfigFieldItems from '@/components/admin/ConfigFieldItems.vue'
 import MediaPicker from '@/components/admin/MediaPicker.vue'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import {
   adminCreateSocialLink,
   adminDeleteSocialLink,
@@ -132,6 +153,16 @@ const basicFields = [
 ]
 
 const appearanceFields = [{ key: 'site_accent_color', label: '主题强调色', type: 'color' }]
+
+const bgOptions = [
+  { key: 'none', label: '纯色' },
+  { key: 'grid', label: '蓝图网格' },
+  { key: 'aurora', label: '光晕流动' },
+  { key: 'dots', label: '点阵' },
+  { key: 'topo', label: '等高波纹' },
+  { key: 'geek', label: '极客终端' },
+  { key: 'line', label: '线条变幻' },
+]
 
 const activeTab = ref('basic')
 const form = reactive({})
@@ -331,5 +362,106 @@ async function handleSave() {
 .social-hint {
   font-size: 12px;
   color: var(--blog-text-secondary);
+}
+
+.bg-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bg-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.bg-option.selected {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 1px var(--el-color-primary);
+}
+
+.bg-thumb {
+  width: 96px;
+  height: 60px;
+  border-radius: 6px;
+  border: 1px solid var(--el-border-color-lighter);
+  display: block;
+}
+
+.bg-label {
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+}
+
+.thumb-none {
+  background: #fafaf8;
+}
+
+.thumb-grid {
+  background-color: #fafaf8;
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.22) 1px, transparent 1px);
+  background-size: 11px 11px;
+}
+
+.thumb-aurora {
+  background-color: #fafaf8;
+  background-image:
+    radial-gradient(45% 55% at 25% 30%, rgba(37, 99, 235, 0.4), transparent 70%),
+    radial-gradient(40% 50% at 78% 65%, rgba(37, 99, 235, 0.25), transparent 70%);
+}
+
+.thumb-dots {
+  background-color: #fafaf8;
+  background-image: radial-gradient(rgba(31, 35, 40, 0.4) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+.thumb-topo {
+  background-color: #fafaf8;
+  background-image: repeating-radial-gradient(circle at 30% 40%, transparent 0 7px, rgba(31, 35, 40, 0.3) 7px 8px);
+}
+
+.thumb-geek {
+  background-color: #0d1117;
+  background-image:
+    repeating-linear-gradient(180deg, transparent 0 6px, rgba(0, 230, 118, 0.35) 6px 7px),
+    linear-gradient(rgba(0, 230, 118, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 230, 118, 0.16) 1px, transparent 1px);
+  background-size:
+    100% 24px,
+    10px 10px,
+    10px 10px;
+}
+
+.thumb-line {
+  background-color: #fafaf8;
+  background-image:
+    radial-gradient(circle, rgba(37, 99, 235, 0.7) 1.2px, transparent 1.4px),
+    linear-gradient(24deg, transparent 47%, rgba(37, 99, 235, 0.3) 49.5%, transparent 52%),
+    linear-gradient(-33deg, transparent 47%, rgba(37, 99, 235, 0.3) 49.5%, transparent 52%);
+  background-size:
+    20px 15px,
+    100% 100%,
+    100% 100%;
+}
+
+.about-editor {
+  width: 100%;
+}
+
+.about-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 </style>

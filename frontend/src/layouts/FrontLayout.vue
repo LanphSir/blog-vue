@@ -1,5 +1,6 @@
 <template>
   <div class="site">
+    <ParticleLines v-if="particleLines" />
     <NoticeBar />
 
     <header class="site-header">
@@ -170,6 +171,7 @@ import { resolveIcon } from '@/utils/navIcons'
 import { isPlaceholderUrl } from '@/utils/config'
 import { useNavOverflow } from '@/composables/useNavOverflow'
 import NoticeBar from '@/components/NoticeBar.vue'
+import ParticleLines from '@/components/ParticleLines.vue'
 import NoticeDialog from '@/components/NoticeDialog.vue'
 import GlobalSearch from '@/components/GlobalSearch.vue'
 import { getFriends } from '@/api/site'
@@ -185,6 +187,8 @@ const logoUrl = computed(() => {
   const v = (configStore.configs.site_logo || '').trim()
   return v && !isPlaceholderUrl(v) ? v : ''
 })
+
+const particleLines = computed(() => configStore.configs.site_background === 'line')
 const themeStore = useThemeStore()
 const showTop = ref(false)
 const friends = ref([])

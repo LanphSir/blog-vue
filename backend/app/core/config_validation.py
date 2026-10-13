@@ -7,6 +7,8 @@ import re
 
 _HEX_COLOR = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
+ALLOWED_BACKGROUNDS = {"none", "grid", "aurora", "dots", "topo", "geek", "line"}
+
 
 def _check_int_range(value: str, low: int, high: int, label: str) -> str | None:
     try:
@@ -25,4 +27,7 @@ def check_config_value(key: str, value: str) -> str | None:
             return "主题强调色必须是 #RGB 或 #RRGGBB 格式"
     elif key == "sidebar_tag_count" and value:
         return _check_int_range(value, 1, 30, "标签云数量")
+    elif key == "site_background" and value:
+        if value not in ALLOWED_BACKGROUNDS:
+            return "背景方案必须是 none/grid/aurora/dots/topo/geek/line 之一"
     return None
