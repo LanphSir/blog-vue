@@ -1,4 +1,8 @@
-"""Generate captcha images as PNG bytes."""
+"""生成验证码图片并返回 PNG 字节。
+
+纯内存合成，无文件落盘：4 位随机字符绘制后加噪点/干扰线/旋转，最终序列化为
+PNG 字节供接口直接返回。字符库刻意只用数字与大写字母，避免大小写难以辨识。
+"""
 
 import io
 import random
@@ -13,6 +17,7 @@ _HEIGHT = 44
 _FONT_SIZE = 28
 _CHARS = string.digits + string.ascii_uppercase
 
+# 按平台依次尝试常见字体路径，全部缺失时回退到 PIL 默认字体（保证不崩）
 _FONT_CANDIDATES = [
     BASE_DIR / "app" / "core" / "DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",

@@ -53,6 +53,9 @@
 </template>
 
 <script setup>
+/* 文章编辑：标题/Slug/封面/摘要/分类/标签/状态/置顶推荐/权重/作者 + Markdown 正文。
+ * 封面经 MediaPicker；标签多选；保存后跳回文章列表。
+ */
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'

@@ -1,10 +1,13 @@
-"""Whitelisted validation rules for well-known site config keys.
+"""站点配置键的白名单校验规则。
 
-Unknown keys pass through so future config additions never block saves.
+只对已知键做格式校验；未知键直接放行，保证未来新增配置不会因校验表未更新
+而阻塞保存。`PUT /admin/site/config` 会在写入前对整批配置逐项校验，任一非法
+即整批 422 拒绝，避免"部分写入"造成配置不一致。
 """
 
 import re
 
+# 站点强调色只允许 #RGB 或 #RRGGBB 两种十六进制形式
 _HEX_COLOR = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 ALLOWED_BACKGROUNDS = {"none", "grid", "aurora", "dots", "topo", "geek", "line"}

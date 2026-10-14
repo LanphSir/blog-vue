@@ -1,4 +1,10 @@
-"""Image upload with timestamped/hashed names, date folders, and the media library."""
+"""图片上传：时间戳+哈希命名、按日分文件夹，以及媒体库管理。
+
+上传先写临时文件并流式限大小，再用 magic bytes 校验真实 MIME（_sniff_mime），
+杜绝伪装扩展名；最终落盘为 ``{时间戳}_{sha256前8位}{扩展名}`` 并登记 media_assets。
+媒体库支持按目录分页/统计，删除默认带引用保护（force 可绕过），启动时会
+sweep 导入库建立前遗留的旧文件（见 seed.py）。
+"""
 
 import hashlib
 import logging
@@ -63,6 +69,7 @@ async def upload_image(
     day_dir = upload_root / f"{now:%Y}" / f"{now:%m}" / f"{now:%d}"
     day_dir.mkdir(parents=True, exist_ok=True)
 
+    # 先写临时文件并流式读入：边限大小、边留前 32 字节供 magic bytes 嗅探、边累计 sha256
     digest = hashlib.sha256()
     size = 0
     head = b""
@@ -87,6 +94,7 @@ async def upload_image(
         tmp.unlink(missing_ok=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="空文件")
 
+    # 用 magic bytes 校验真实类型，防止"改后缀伪装成图片"的文件混入
     mime = _sniff_mime(head, ext)
     if mime is None:
         tmp.unlink(missing_ok=True)

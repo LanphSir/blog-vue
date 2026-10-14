@@ -87,11 +87,32 @@ html[data-bg]:not([data-bg="none"]) body::before {
   pointer-events: none;
 }
 
+/* 背景图案配色变量：随主题翻转（inline 的 --blog-primary 在暗色下偏深，暗色改用浅灰描线） */
+:root {
+  --bg-line: color-mix(in srgb, var(--blog-primary) 11%, transparent);
+  --bg-aurora-a: color-mix(in srgb, var(--blog-primary) 22%, transparent);
+  --bg-aurora-b: color-mix(in srgb, var(--blog-primary) 16%, transparent);
+  --bg-aurora-c: color-mix(in srgb, var(--blog-primary) 15%, transparent);
+  --bg-geek-line: rgba(0, 166, 90, 0.12);
+  --bg-geek-glow: rgba(0, 166, 90, 0.06);
+  --bg-geek-scan: rgba(0, 166, 90, 0.2);
+}
+
+html.dark {
+  --bg-line: rgba(230, 232, 235, 0.085);
+  --bg-aurora-a: color-mix(in srgb, var(--blog-primary) 28%, transparent);
+  --bg-aurora-b: color-mix(in srgb, var(--blog-primary) 20%, transparent);
+  --bg-aurora-c: color-mix(in srgb, var(--blog-primary) 13%, transparent);
+  --bg-geek-line: rgba(0, 230, 118, 0.065);
+  --bg-geek-glow: rgba(0, 230, 118, 0.04);
+  --bg-geek-scan: rgba(0, 230, 118, 0.15);
+}
+
 /* grid: 蓝图网格，60s 无缝漂移（位移=网格周期） */
 html[data-bg="grid"] body::before {
   background-image:
-    linear-gradient(color-mix(in srgb, var(--blog-primary) 7%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--blog-primary) 7%, transparent) 1px, transparent 1px);
+    linear-gradient(var(--bg-line) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, var(--bg-line) 1.5px, transparent 1.5px);
   background-size: 44px 44px;
   animation: bg-drift 60s linear infinite;
   will-change: transform;
@@ -106,9 +127,9 @@ html[data-bg="grid"] body::before {
 /* aurora: 主色柔光呼吸，90s 往复 */
 html[data-bg="aurora"] body::before {
   background-image:
-    radial-gradient(38% 44% at 18% 22%, color-mix(in srgb, var(--blog-primary) 16%, transparent), transparent 70%),
-    radial-gradient(34% 40% at 82% 30%, color-mix(in srgb, var(--blog-primary) 11%, transparent), transparent 70%),
-    radial-gradient(42% 48% at 55% 85%, color-mix(in srgb, var(--blog-primary) 9%, transparent), transparent 72%);
+    radial-gradient(38% 44% at 18% 22%, var(--bg-aurora-a), transparent 70%),
+    radial-gradient(34% 40% at 82% 30%, var(--bg-aurora-b), transparent 70%),
+    radial-gradient(42% 48% at 55% 85%, var(--bg-aurora-c), transparent 72%);
   background-repeat: no-repeat;
   animation: bg-breathe 90s ease-in-out infinite alternate;
   will-change: transform;
@@ -125,27 +146,27 @@ html[data-bg="aurora"] body::before {
 
 /* dots: 圆点瓦片（SVG 平铺，静态零开销） */
 html[data-bg="dots"] body::before {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2722%27%20height%3D%2722%27%3E%3Ccircle%20cx%3D%272%27%20cy%3D%272%27%20r%3D%271.4%27%20fill%3D%27rgba%2831%2C35%2C40%2C0.20%29%27%2F%3E%3C%2Fsvg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2722%27%20height%3D%2722%27%3E%3Ccircle%20cx%3D%272%27%20cy%3D%272%27%20r%3D%271.9%27%20fill%3D%27rgba%2831%2C35%2C40%2C0.30%29%27%2F%3E%3C%2Fsvg%3E");
 }
 
 html.dark[data-bg="dots"] body::before {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2722%27%20height%3D%2722%27%3E%3Ccircle%20cx%3D%272%27%20cy%3D%272%27%20r%3D%271.4%27%20fill%3D%27rgba%28230%2C232%2C235%2C0.22%29%27%2F%3E%3C%2Fsvg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2722%27%20height%3D%2722%27%3E%3Ccircle%20cx%3D%272%27%20cy%3D%272%27%20r%3D%271.9%27%20fill%3D%27rgba%28230%2C232%2C235%2C0.32%29%27%2F%3E%3C%2Fsvg%3E");
 }
 
 /* topo: 等高波纹瓦片（SVG 平铺，静态零开销） */
 html[data-bg="topo"] body::before {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27120%27%20height%3D%27120%27%20fill%3D%27none%27%20stroke%3D%27rgba%2831%2C35%2C40%2C0.16%29%27%20stroke-width%3D%271%27%3E%3Cpath%20d%3D%27M0%2020C15%2010%2045%2010%2060%2020S105%2030%20120%2020%27%2F%3E%3Cpath%20d%3D%27M0%2060C15%2070%2045%2070%2060%2060S105%2050%20120%2060%27%2F%3E%3Cpath%20d%3D%27M0%20100C15%2090%2045%2090%2060%20100S105%20110%20120%20100%27%2F%3E%3C%2Fsvg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27120%27%20height%3D%27120%27%20fill%3D%27none%27%20stroke%3D%27rgba%2831%2C35%2C40%2C0.26%29%27%20stroke-width%3D%271.5%27%3E%3Cpath%20d%3D%27M0%2020C15%2010%2045%2010%2060%2020S105%2030%20120%2020%27%2F%3E%3Cpath%20d%3D%27M0%2060C15%2070%2045%2070%2060%2060S105%2050%20120%2060%27%2F%3E%3Cpath%20d%3D%27M0%20100C15%2090%2045%2090%2060%20100S105%20110%20120%20100%27%2F%3E%3C%2Fsvg%3E");
 }
 
 html.dark[data-bg="topo"] body::before {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27120%27%20height%3D%27120%27%20fill%3D%27none%27%20stroke%3D%27rgba%28230%2C232%2C235%2C0.15%29%27%20stroke-width%3D%271%27%3E%3Cpath%20d%3D%27M0%2020C15%2010%2045%2010%2060%2020S105%2030%20120%2020%27%2F%3E%3Cpath%20d%3D%27M0%2060C15%2070%2045%2070%2060%2060S105%2050%20120%2060%27%2F%3E%3Cpath%20d%3D%27M0%20100C15%2090%2045%2090%2060%20100S105%20110%20120%20100%27%2F%3E%3C%2Fsvg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27120%27%20height%3D%27120%27%20fill%3D%27none%27%20stroke%3D%27rgba%28230%2C232%2C235%2C0.19%29%27%20stroke-width%3D%271.5%27%3E%3Cpath%20d%3D%27M0%2020C15%2010%2045%2010%2060%2020S105%2030%20120%2020%27%2F%3E%3Cpath%20d%3D%27M0%2060C15%2070%2045%2070%2060%2060S105%2050%20120%2060%27%2F%3E%3Cpath%20d%3D%27M0%20100C15%2090%2045%2090%2060%20100S105%20110%20120%20100%27%2F%3E%3C%2Fsvg%3E");
 }
 
 /* geek: 终端网格漂移 + 扫描亮线每 8s 掠过（周期=亮线重复周期，无缝） */
 html[data-bg="geek"] body::before {
   background-image:
-    linear-gradient(rgba(0, 230, 118, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 230, 118, 0.05) 1px, transparent 1px);
+    linear-gradient(var(--bg-geek-line) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, var(--bg-geek-line) 1.5px, transparent 1.5px);
   background-size: 32px 32px;
   animation: bg-drift-geek 60s linear infinite;
   will-change: transform;
@@ -164,7 +185,7 @@ html[data-bg="geek"] body::after {
   z-index: -1;
   pointer-events: none;
   background-image:
-    repeating-linear-gradient(180deg, transparent 0 236px, rgba(0, 230, 118, 0.03) 236px 238px, rgba(0, 230, 118, 0.10) 238px 240px);
+    repeating-linear-gradient(180deg, transparent 0 236px, var(--bg-geek-glow) 236px 238px, var(--bg-geek-scan) 238px 240px);
   animation: bg-scan 8s linear infinite;
   will-change: transform;
 }
@@ -173,11 +194,6 @@ html[data-bg="geek"] body::after {
   to {
     transform: translate3d(0, 240px, 0);
   }
-}
-
-html.dark[data-bg]:not([data-bg="none"]) body::before,
-html.dark[data-bg="geek"] body::after {
-  opacity: 0.6;
 }
 
 @media (prefers-reduced-motion: reduce) {

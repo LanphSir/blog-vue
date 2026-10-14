@@ -1,3 +1,5 @@
+// 搜索历史：存 localStorage，上限 10 条，新词去重后插到最前。
+// 所有读写都 try/catch——隐私模式/存满等场景写不进去也必须静默降级，不能抛错中断搜索。
 const STORAGE_KEY = 'blog_search_history'
 const MAX_ITEMS = 10
 

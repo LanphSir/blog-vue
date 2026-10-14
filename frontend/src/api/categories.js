@@ -1,3 +1,4 @@
+// 分类/标签接口封装（前台读取 + 后台增删改）。
 import request from './index'
 
 export const getCategories = () => request.get('/categories')

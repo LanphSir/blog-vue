@@ -1,3 +1,9 @@
+"""分类与标签的请求/响应模型。
+
+Create/Update 区分必填与可选字段；Out 模型用 from_attributes 直接由 ORM 实例
+序列化，并带 post_count 用于展示文章数；CategoryTreeOut 为树形递归节点。
+"""
+
 from pydantic import BaseModel, Field
 
 

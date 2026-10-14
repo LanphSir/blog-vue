@@ -25,6 +25,10 @@
 </template>
 
 <script setup>
+/* 弹窗公告：展示 type=dialog 的最新一条未读公告。
+ * dismissedKey 用 id:version 记住「本次会话内已关掉的公告」，
+ * 避免 watch 因 notice 对象变化在同一个版本里反复弹。
+ */
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { setupMdEditor } from '@/composables/useMdEditor'
 import { useConfigStore } from '@/stores/config'

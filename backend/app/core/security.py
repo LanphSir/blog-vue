@@ -1,4 +1,8 @@
-"""Security helpers: password hashing and JWT token handling."""
+"""安全辅助：密码哈希与 JWT 令牌处理。
+
+统一封装密码的哈希/校验与 JWT 的签发/解码，认证模块只依赖这里的接口。
+注意：passlib 依赖的 bcrypt 被锁定在 <4.1（见 AGENTS.md），否则启动即报错。
+"""
 
 from datetime import UTC, datetime, timedelta
 
@@ -7,6 +11,7 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
+# 使用 bcrypt 方案；deprecated="auto" 会在密码重哈希时自动升级旧格式
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = settings.algorithm

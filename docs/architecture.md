@@ -70,3 +70,9 @@ SQLite
 - **健壮性防线**：所有公网读取处均有默认值回退（菜单表空→内置默认菜单、颜色非法→主题蓝、布尔字符串统一 `utils/config.js` 解析）；图标名不在 `utils/navIcons.js` 注册表时不渲染图标而非报错；配置更新后端白名单校验 + 前端同规则预校验。
 - **路由**：`/` 前台（FrontLayout 包裹），`/admin` 后台（AdminLayout 包裹 + 认证守卫），`/admin/login` 登录页。
 - **Axios**：请求拦截附带 token，响应拦截统一解包 `{code,message,data}` 并处理 401 跳转登录。
+
+## 8. RSS 订阅与归档（0.12.0）
+
+- `GET /feed.xml`（同时挂载于 `/api/v1/feed.xml`，便于 Vite/nginx 代理）：RSS 2.0，最新 20 篇已发布文章，标题/链接/摘要/正文/分类/发布时间，站点名/描述/作者取站点配置；纯 XML 不走统一信封；前端 `index.html` 以 `<link rel="alternate">` 自动发现。
+- `GET /posts/archive`：仅已发布，按年/月倒序分组返回 `[{year, month, posts[]}]`；路由声明须在 `/posts/{slug}` 之前避免被通配捕获。
+- 浏览量去重：`GET /posts/{slug}?count_view=false` 不自增；详情页以 localStorage `blog_viewed:{slug}` 做 5 分钟节流。

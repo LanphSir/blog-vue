@@ -108,6 +108,16 @@
 
         <div class="section-card">
           <div class="section-head">
+            <span class="section-title">公告卡片</span>
+            <el-switch
+              :model-value="isOn('sidebar_notice_visible')"
+              @update:model-value="(v) => setSwitch('sidebar_notice_visible', v)"
+            />
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
             <span class="section-title">最近发布</span>
             <el-switch
               :model-value="isOn('sidebar_recent_visible')"
@@ -128,6 +138,13 @@
 </template>
 
 <script setup>
+/* 站点配置：基础信息/外观/侧边栏/关于我 四个 tab。
+ * 配置以「键值对」数组整体提交 PUT /admin/site/config，布尔值先转成字符串存库；
+ * 侧边栏各开关把布尔转成 "true"/"false" 字符串，配置读取侧用 isEnabled 还原。
+ * 社交链接单独一张表：只有被改动（_dirty）的行才更新，删除行收集到 removedSocialRows 统一删。
+ * 保存前做两层校验：社交链接 URL 必须 http(s):// 或 mailto: 开头、强调色/标签数量格式等，
+ * 不合法直接跳回对应 tab 并提示，避免整批被后端 422 拒掉。
+ */
 import { onMounted, reactive, ref } from 'vue'
 import { ElCollapseTransition, ElMessage } from 'element-plus'
 import ConfigFieldItems from '@/components/admin/ConfigFieldItems.vue'

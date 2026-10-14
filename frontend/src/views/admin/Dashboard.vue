@@ -39,6 +39,8 @@
 </template>
 
 <script setup>
+/* 后台仪表盘：四张统计卡 + 最近发布的文章。刷新按钮重新拉 stats 与最近文章。
+ */
 import { computed, onMounted, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { adminGetPosts } from '@/api/posts'

@@ -1,6 +1,9 @@
-"""Seed the database with the initial admin account, default site config and demo content.
+"""启动时播种初始管理员、默认站点配置与演示内容。
 
-Called automatically on application startup; safe to re-run (idempotent).
+应用启动自动调用，可安全重复执行（幂等）：管理员/配置/演示数据都按"存在即跳过"
+的方式插入；一次性迁移（默认菜单、归档菜单项、旧 JSON 配置迁移、媒体库扫描等）
+都依赖对应的配置标记（menus_seeded、archive_menu_added 等）或"表为空"判断，
+确保不会因重复启动而重复写入或覆盖用户已做的修改。
 """
 
 import json
@@ -74,6 +77,7 @@ DEFAULT_SITE_CONFIG = {
     "sidebar_tags_visible": "true",
     "sidebar_tag_count": "8",
     "sidebar_recent_visible": "true",
+    "sidebar_notice_visible": "true",
     "site_logo": "",
     "site_background": "none",
     "icp": "",
@@ -612,7 +616,8 @@ DEFAULT_MENU_ROWS = [
 
 
 async def _seed_default_menus(db: AsyncSession) -> None:
-    """Turn the previously hardcoded default nav into manageable table rows (once per install)."""
+    """把原先硬编码的默认导航落成可管理的表行（每个安装仅一次）。"""
+    # 用配置标记 menus_seeded 保证只播种一次；用户之后删除菜单也不会被重新播种
     marker = await site_crud.get_config(db, "menus_seeded")
     if marker is not None:
         return
@@ -625,8 +630,29 @@ async def _seed_default_menus(db: AsyncSession) -> None:
     await db.commit()
 
 
+async def _add_archive_menu(db: AsyncSession) -> None:
+    """一次性：给已经播种过的菜单表追加"归档"项（幂等）。"""
+    # 归档功能上线前就装好的站点菜单表里没有归档项，这里用标记只补一次；
+    # 若用户已手动加过 /archive 则跳过，避免重复
+    if await site_crud.get_config(db, "archive_menu_added") is not None:
+        return
+    exists = (
+        await db.execute(select(func.count(MenuItem.id)).where(MenuItem.path == "/archive"))
+    ).scalar_one()
+    if exists == 0:
+        max_order = (
+            await db.execute(select(func.coalesce(func.max(MenuItem.sort_order), 0)))
+        ).scalar_one()
+        db.add(
+            MenuItem(label="归档", path="/archive", icon="FolderOpened", sort_order=max_order + 1)
+        )
+        logger.info("Appended archive nav menu item")
+    await site_crud.set_config(db, "archive_menu_added", "true")
+    await db.commit()
+
+
 async def _migrate_menus(db: AsyncSession) -> None:
-    """Move the legacy site_menus JSON config into the menu_items table (one-shot, idempotent)."""
+    """把旧的 site_menus JSON 配置迁移进 menu_items 表（一次性、幂等）。"""
     count = (await db.execute(select(func.count(MenuItem.id)))).scalar_one()
     if count > 0:
         return
@@ -636,6 +662,7 @@ async def _migrate_menus(db: AsyncSession) -> None:
     try:
         data = json.loads(item.value)
     except json.JSONDecodeError:
+        # 配置是用户手改过的，可能是坏 JSON；跳过并告警，而不是让启动失败
         logger.warning("Skip site_menus migration: invalid JSON")
         return
     if not isinstance(data, list) or not data:
@@ -678,7 +705,7 @@ def _legacy_visible(entry: dict) -> bool:
 
 
 async def _migrate_social_links(db: AsyncSession) -> None:
-    """Move the legacy profile_links JSON config into the social_links table (idempotent)."""
+    """把旧的 profile_links JSON 配置迁入 social_links 表（幂等）。"""
     count = (await db.execute(select(func.count(SocialLink.id)))).scalar_one()
     if count > 0:
         return
@@ -710,7 +737,7 @@ async def _migrate_social_links(db: AsyncSession) -> None:
 
 
 async def _migrate_notice(db: AsyncSession) -> None:
-    """Turn the legacy notice_text/enabled/version config trio into one banner notice."""
+    """把旧的 notice_text/enabled/version 三个配置合并为一条 banner 公告（幂等）。"""
     count = (await db.execute(select(func.count(Notice.id)))).scalar_one()
     if count > 0:
         return
@@ -755,14 +782,16 @@ async def seed_default_data() -> None:
 
         await _migrate_menus(db)
         await _seed_default_menus(db)
+        await _add_archive_menu(db)
         await _migrate_social_links(db)
         await _migrate_notice(db)
         await sweep_existing_uploads(db)
 
 
 async def seed_demo_data() -> None:
-    """Seed demo content only when the database has no posts yet."""
+    """仅当数据库尚无文章时才播种演示内容。"""
     async with AsyncSessionLocal() as db:
+        # 以 posts 表是否为空作为判断：已有数据说明是正式使用，绝不覆盖/重复播种
         post_count = (await db.execute(select(func.count(Post.id)))).scalar_one()
         if post_count > 0:
             return
@@ -846,7 +875,8 @@ if __name__ == "__main__":
 
 
 async def sweep_existing_uploads(db: AsyncSession) -> None:
-    """Register uploads saved before the media library existed (one-shot, idempotent)."""
+    """把媒体库建立前已落盘的上传文件登记入库（一次性、幂等）。"""
+    # 已有任何媒体记录说明此前已扫描过，跳过；目录不存在也直接返回
     count = (await db.execute(select(func.count(MediaAsset.id)))).scalar_one()
     if count > 0:
         return

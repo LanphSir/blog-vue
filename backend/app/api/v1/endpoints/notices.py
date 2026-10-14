@@ -1,4 +1,9 @@
-"""Notice endpoints: public list/detail + admin CRUD with automatic version bump."""
+"""公告端点：公开列表/详情 + 管理端 CRUD（内容变更自动升版本）。
+
+公开列表会隐去 page 类型公告的正文（避免把整页内容暴露给列表请求），详情接口
+才返回正文，且禁用中的公告详情按 404 处理。管理端更新时若标题或正文有变化会
+自动递增 version，前端据此判断是否该重新弹窗（localStorage 记忆版本号）。
+"""
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -19,6 +24,7 @@ def _bad_request(detail: str) -> HTTPException:
 
 def _to_out(notice: Notice, hide_content: bool = False) -> NoticeOut:
     item = NoticeOut.model_validate(notice)
+    # page 类型公告正文很长，列表接口不返回，避免把整页内容塞进列表响应
     if hide_content and notice.type == "page":
         item.content = None
     return item
@@ -73,6 +79,7 @@ async def update_notice(
     for field, value in changes.items():
         setattr(notice, field, value)
     if content_changed:
+        # 标题/正文变更即升版本，前端按版本号判断本地是否已读过，从而决定是否再次展示
         notice.version += 1
 
     await db.commit()

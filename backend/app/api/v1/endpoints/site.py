@@ -1,4 +1,8 @@
-"""Site config and friend link endpoints: public reads + admin CRUD."""
+"""站点配置、友链与轮播图端点：公开读取 + 管理端 CRUD。
+
+配置批量更新先整体校验（白名单校验见 config_validation.py），任一键非法即整批
+422 拒绝，确保"要么全部生效、要么全部不改"，避免部分写入造成配置不一致。
+"""
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -32,6 +36,7 @@ async def get_site_config(db: DbDep) -> ApiResponse[list[ConfigOut]]:
 async def update_site_config(
     payload: list[ConfigItem], db: DbDep, _: CurrentUser
 ) -> ApiResponse[list[ConfigOut]]:
+    # 先对整批配置做白名单校验；任一非法即 422 拒绝整批，保证"全部生效或全不改"
     errors = [
         f"{item.key}: {error}"
         for item in payload

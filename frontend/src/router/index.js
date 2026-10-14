@@ -1,3 +1,6 @@
+// 路由表 + 守卫。
+// 守卫两个要点：admin 路由 requiresAuth 且无 token 时跳登录并带 redirect；
+// 登录态下再进登录页会送回 dashboard。全局 catch-all 挂在 FrontLayout 子路由末尾兜 404。
 import { createRouter, createWebHistory } from 'vue-router'
 import { setRouteTitle } from '@/utils/pageTitle'
 
@@ -14,6 +17,8 @@ const routes = [
       { path: 'friends', name: 'friends', meta: { title: '友情链接' }, component: () => import('@/views/front/Friends.vue') },
       { path: 'about', name: 'about', meta: { title: '关于' }, component: () => import('@/views/front/About.vue') },
       { path: 'notice/:id', name: 'notice', component: () => import('@/views/front/NoticePage.vue') },
+      { path: 'archive', name: 'archive', meta: { title: '归档' }, component: () => import('@/views/front/ArchivePage.vue') },
+      { path: ':pathMatch(.*)*', name: 'not-found', meta: { title: '页面不见了' }, component: () => import('@/views/front/NotFound.vue') },
     ],
   },
   {

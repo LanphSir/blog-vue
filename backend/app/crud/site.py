@@ -1,4 +1,8 @@
-"""Site config, banner and friend link CRUD operations."""
+"""站点配置、轮播图、友链等站点级数据的 CRUD 操作。
+
+含菜单、社交链接、公告及站点统计等聚合查询。统计数据同样需过滤软删除文章，
+保证与公开列表口径一致。
+"""
 
 from datetime import UTC, datetime
 
@@ -20,6 +24,7 @@ async def list_configs(db: AsyncSession) -> list[SiteConfig]:
 
 
 async def set_config(db: AsyncSession, key: str, value: str) -> SiteConfig:
+    # upsert：键不存在则新建，存在则覆盖；用 flush 而非 commit 以便外层统一提交
     item = await get_config(db, key)
     if item is None:
         item = SiteConfig(key=key, value=value)

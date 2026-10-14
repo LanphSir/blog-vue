@@ -4,7 +4,9 @@
       横幅公告显示在站点顶部（同类型按排序取第一条）；弹窗公告对未读用户弹出一次；单页公告通过
       “导航菜单”添加入口（路径填 /notice/公告ID）。内容变更会自动升版本，已关闭的用户会重新收到。
     </el-alert>
-    <el-button type="primary" @click="openDialog()" class="add-btn">新增公告</el-button>
+    <div class="page-toolbar">
+      <el-button type="primary" @click="openDialog()">新增公告</el-button>
+    </div>
 
     <el-table :data="notices" stripe v-loading="loading">
       <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
@@ -14,21 +16,26 @@
         </template>
       </el-table-column>
       <el-table-column prop="version" label="版本" width="70" />
-      <el-table-column label="启用" width="80">
+      <el-table-column label="启用" width="80" align="center">
         <template #default="{ row }">
           <el-switch v-model="row.enabled" @change="patch(row, { enabled: row.enabled })" />
         </template>
       </el-table-column>
-      <el-table-column label="排序" width="90">
+      <el-table-column label="排序" width="110" align="center">
         <template #default="{ row }">
-          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" @change="patch(row, { sort_order: row.sort_order })" />
+          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" class="inline-sort" @change="patch(row, { sort_order: row.sort_order })" />
         </template>
       </el-table-column>
       <el-table-column label="更新时间" width="150">
         <template #default="{ row }">{{ fmt(row.updated_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="150">
+      <el-table-column label="操作" width="150" align="center" fixed="right">
         <template #default="{ row }">
+          <el-tooltip :content="row.enabled ? '前台查看' : '启用后可查看'" placement="top">
+            <span>
+              <el-button link type="primary" :disabled="!row.enabled" @click="viewNotice(row)">查看</el-button>
+            </span>
+          </el-tooltip>
           <el-button link type="primary" @click="openDialog(row)">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
@@ -61,9 +68,16 @@
 </template>
 
 <script setup>
+/* 公告管理：三种类型（横幅/弹窗/单页）。横幅纯文本、弹窗/单页走 MarkdownEditor。
+ * 内容变更后端自动升版本，已关闭的公告用户会重新看到（dismiss 记忆按版本比对）。
+ * 单页公告入口需用户手动在导航菜单里加 /notice/{id} 链接，这里提供「复制链接」。
+ */
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { adminCreateNotice, adminDeleteNotice, adminGetNotices, adminUpdateNotice } from '@/api/site'
+
+const router = useRouter()
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 
 const TYPE_LABEL = { banner: '横幅', dialog: '弹窗', page: '单页' }
@@ -136,6 +150,14 @@ async function patch(row, data) {
   }
 }
 
+function noticeHref(row) {
+  return router.resolve({ name: 'notice', params: { id: row.id } }).href
+}
+
+function viewNotice(row) {
+  window.open(noticeHref(row), '_blank')
+}
+
 async function handleDelete(row) {
   try {
     await ElMessageBox.confirm(`确认删除公告「${row.title}」？`, '提示', { type: 'warning' })
@@ -157,9 +179,5 @@ onMounted(load)
 <style scoped>
 .tip {
   margin-bottom: 14px;
-}
-
-.add-btn {
-  margin-bottom: 16px;
 }
 </style>

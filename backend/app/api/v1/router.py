@@ -1,3 +1,9 @@
+"""API v1 路由汇总。
+
+将各功能子路由按前缀与标签统一挂载到 api_router 上，最终由 main.py 以 /api/v1
+前缀挂载。posts 等子路由因内部已含 /admin/ 前缀，这里用空前缀平铺挂载。
+"""
+
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import auth, categories, menus, notices, posts, site, social, uploads

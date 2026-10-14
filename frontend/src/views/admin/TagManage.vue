@@ -1,6 +1,8 @@
 <template>
   <el-card>
-    <el-button type="primary" @click="openDialog()" class="add-btn">新增标签</el-button>
+    <div class="page-toolbar">
+      <el-button type="primary" @click="openDialog()">新增标签</el-button>
+    </div>
 
     <el-table :data="tags" stripe v-loading="loading">
       <el-table-column prop="name" label="名称" min-width="140">
@@ -10,23 +12,23 @@
       </el-table-column>
       <el-table-column prop="slug" label="Slug" min-width="140" />
       <el-table-column prop="post_count" label="文章数" width="90" />
-      <el-table-column label="排序" width="110">
+      <el-table-column label="排序" width="110" align="center">
         <template #default="{ row }">
-          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" @change="updateSort(row)" />
+          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" class="inline-sort" @change="updateSort(row)" />
         </template>
       </el-table-column>
-      <el-table-column label="显示" width="80">
+      <el-table-column label="显示" width="80" align="center">
         <template #default="{ row }">
           <el-switch v-model="row.visible" @change="updateVisible(row)" />
         </template>
       </el-table-column>
-      <el-table-column label="颜色" width="80">
+      <el-table-column label="颜色" width="80" align="center">
         <template #default="{ row }">
           <span v-if="row.color" class="color-dot" :style="{ background: row.color }" />
           <span v-else class="color-none">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140">
+      <el-table-column label="操作" width="130" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDialog(row)">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
@@ -41,9 +43,6 @@
         </el-form-item>
         <el-form-item label="Slug">
           <el-input v-model="form.slug" placeholder="url 别名" @keyup.enter="handleSave" />
-        </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort_order" :min="0" />
         </el-form-item>
         <el-form-item label="颜色">
           <el-color-picker v-model="form.color" :predefine="colorPresets" />
@@ -62,6 +61,8 @@
 </template>
 
 <script setup>
+/* 标签管理：列表 + 新增/编辑弹窗。行内改排序/可见性即调接口；标签云显示受 visible 控制。
+ */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { adminCreateTag, adminDeleteTag, adminUpdateTag, getTags } from '@/api/categories'
@@ -102,6 +103,8 @@ async function handleSave() {
   try {
     const payload = { ...form.value }
     if (payload.id) {
+      // 排序只在行内即改即存，编辑弹窗不回写
+      delete payload.sort_order
       await adminUpdateTag(payload.id, payload)
     } else {
       delete payload.id
@@ -124,7 +127,11 @@ async function updateVisible(row) {
 }
 
 async function updateSort(row) {
-  await adminUpdateTag(row.id, { sort_order: row.sort_order })
+  try {
+    await adminUpdateTag(row.id, { sort_order: row.sort_order })
+  } catch {
+    load()
+  }
 }
 
 async function handleDelete(row) {
@@ -138,10 +145,6 @@ onMounted(load)
 </script>
 
 <style scoped>
-.add-btn {
-  margin-bottom: 16px;
-}
-
 .color-dot {
   display: inline-block;
   width: 18px;

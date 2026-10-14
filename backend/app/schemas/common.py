@@ -1,4 +1,8 @@
-"""Common Pydantic schemas: unified API response envelope and pagination."""
+"""通用 Pydantic 模型：统一响应信封与分页。
+
+所有接口都返回 {code, message, data} 信封；PageData 承载分页列表；ok/fail 是
+构造成功/失败响应的便捷函数，供各端点统一使用。
+"""
 
 from pydantic import BaseModel
 

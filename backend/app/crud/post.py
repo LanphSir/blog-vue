@@ -1,4 +1,9 @@
-"""Post CRUD operations with pagination/filtering support."""
+"""文章 CRUD 操作：分页、过滤与软删除支持。
+
+公开查询统一默认排除软删除（``deleted_at`` 非空）的文章；回收站单独用
+``deleted_only`` 查询。排序规则固定为：置顶(is_top) → 自定义权重(sort_weight)
+→ 发布时间倒序，保证列表顺序稳定可预期。
+"""
 
 from datetime import UTC, datetime
 
@@ -22,6 +27,7 @@ async def list_posts(
     deleted_only: bool = False,
 ) -> tuple[list[Post], int]:
     query = select(Post)
+    # 软删除过滤：默认排除已删除，回收站(deleted_only)只看已删除，显式 include_deleted 才全量
     if deleted_only:
         query = query.where(Post.deleted_at.is_not(None))
     elif not include_deleted:
@@ -41,9 +47,20 @@ async def list_posts(
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
 
+    # 固定排序规则：置顶(is_top) → 自定义权重(sort_weight) → 发布时间倒序，
+    # 三键依次降序，保证首页列表顺序稳定且可控
     query = query.order_by(Post.is_top.desc(), Post.sort_weight.desc(), Post.published_at.desc())
     rows = (await db.execute(query.offset((page - 1) * page_size).limit(page_size))).scalars().all()
     return list(rows), total
+
+
+async def list_archived_posts(db: AsyncSession) -> list[Post]:
+    result = await db.execute(
+        select(Post)
+        .where(Post.deleted_at.is_(None), Post.status == "published")
+        .order_by(Post.published_at.desc())
+    )
+    return list(result.scalars().all())
 
 
 async def get_by_slug(db: AsyncSession, slug: str) -> Post | None:

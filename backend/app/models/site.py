@@ -1,3 +1,9 @@
+"""站点级 ORM 模型：配置、轮播图、友链、菜单、社交链接、公告与媒体资源。
+
+站点配置以 key/value 存于 site_configs；菜单支持两级自引用；公告带 version 字段
+供前端记忆"已读版本"；媒体资源（media_assets）登记每次上传的落盘文件与元信息。
+"""
+
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func

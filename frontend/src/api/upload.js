@@ -1,3 +1,4 @@
+// 上传与媒体库接口。上传走 multipart；删除带 force 参数跳过「被引用」保护做强制删除。
 import request from './index'
 
 export const uploadImage = (file) => {

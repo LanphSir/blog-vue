@@ -330,3 +330,39 @@ def test_post_soft_delete_restore_permanent(client):
     ).json()["data"]
     client.delete(f"/api/v1/admin/posts/{other['id']}", headers=headers)
     assert client.get(f"/api/v1/admin/posts/{other['id']}", headers=headers).status_code == 404
+
+
+def test_archive_feed_and_view_count_param(client):
+    headers = _login(client)
+    for slug in ("arch-feed-a", "arch-feed-b"):
+        resp = client.post(
+            "/api/v1/admin/posts",
+            headers=headers,
+            json={
+                "title": f"归档测试 {slug}",
+                "slug": slug,
+                "content": "正文内容",
+                "status": "published",
+            },
+        )
+        assert resp.status_code == 201
+
+    archived = client.get("/api/v1/posts/archive")
+    assert archived.status_code == 200
+    groups = archived.json()["data"]
+    assert groups and all({"year", "month", "posts"} <= set(g) for g in groups)
+    slugs = {p["slug"] for g in groups for p in g["posts"]}
+    assert {"arch-feed-a", "arch-feed-b"} <= slugs
+
+    feed = client.get("/feed.xml")
+    assert feed.status_code == 200
+    assert "rss+xml" in feed.headers["content-type"]
+    body = feed.text
+    assert "<rss version=\"2.0\">" in body and "arch-feed-a" in body
+
+    first = client.get("/api/v1/posts/arch-feed-a").json()["data"]["view_count"]
+    throttled = client.get("/api/v1/posts/arch-feed-a", params={"count_view": False})
+    again = throttled.json()["data"]["view_count"]
+    assert again == first
+    third = client.get("/api/v1/posts/arch-feed-a").json()["data"]["view_count"]
+    assert third == first + 1

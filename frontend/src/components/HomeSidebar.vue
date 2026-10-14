@@ -1,5 +1,17 @@
 <template>
   <aside class="home-side">
+    <div v-if="noticeVisible && noticeList.length" class="card side-card reveal">
+      <h3>公告</h3>
+      <ul class="notice-list">
+        <li v-for="n in noticeList" :key="n.id">
+          <a @click="goNotice(n.id)">
+            <span class="notice-item-title">{{ n.title }}</span>
+            <time class="notice-item-date">{{ formatDate(n.updated_at) }}</time>
+          </a>
+        </li>
+      </ul>
+    </div>
+
     <ProfileCard v-if="profileVisible" class="reveal" />
 
     <div v-if="tagsVisible" class="card side-card reveal">
@@ -37,6 +49,11 @@
 </template>
 
 <script setup>
+/* 前台侧边栏：公告 + 简介卡 + 标签云 + 最近发布。
+ * 各卡片显隐由 site_* 布尔配置决定，注意这些配置以字符串 "true"/"false" 到达，
+ * 必须走 isEnabled 解析而非 truthy 判断（字符串 "false" 也会被当成真）。
+ * 公告列表按 type 排序（page 型靠后），只取前 5 条；标签云数量用 toNumber 解析。
+ */
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ProfileCard from '@/components/ProfileCard.vue'
@@ -58,6 +75,12 @@ useReveal()
 const profileVisible = computed(() => isEnabled(configStore.configs.profile_visible))
 const tagsVisible = computed(() => isEnabled(configStore.configs.sidebar_tags_visible))
 const recentVisible = computed(() => isEnabled(configStore.configs.sidebar_recent_visible))
+const noticeVisible = computed(() => isEnabled(configStore.configs.sidebar_notice_visible))
+const noticeList = computed(() => {
+  const list = [...configStore.notices]
+  list.sort((a, b) => (a.type === 'page' ? 0 : 1) - (b.type === 'page' ? 0 : 1))
+  return list.slice(0, 5)
+})
 const tagLimit = computed(() => {
   const n = toNumber(configStore.configs.sidebar_tag_count, 8)
   return n > 0 ? n : 8
@@ -68,6 +91,14 @@ const hasMoreTags = computed(() => allTags.value.filter((t) => t.visible !== fal
 
 function goDetail(slug) {
   router.push({ name: 'post-detail', params: { slug } })
+}
+
+function goNotice(id) {
+  router.push({ name: 'notice', params: { id } })
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleDateString('zh-CN') : ''
 }
 
 function filterByTag(id) {
@@ -128,6 +159,39 @@ onMounted(async () => {
 
 .side-empty {
   color: var(--blog-text-secondary);
+  font-size: 12px;
+}
+
+.notice-list {
+  list-style: none;
+}
+
+.notice-list li {
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.notice-list a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--blog-text-secondary);
+  cursor: pointer;
+}
+
+.notice-list a:hover {
+  color: var(--blog-primary);
+}
+
+.notice-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notice-item-date {
+  flex-shrink: 0;
   font-size: 12px;
 }
 

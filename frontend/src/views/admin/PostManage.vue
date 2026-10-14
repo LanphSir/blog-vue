@@ -1,6 +1,6 @@
 <template>
   <el-card>
-    <div class="toolbar">
+    <div class="page-toolbar">
       <el-radio-group v-model="recycleMode" size="default" @change="recycleMode = $event; load(1)">
         <el-radio-button :value="false">文章列表</el-radio-button>
         <el-radio-button :value="true">回收站</el-radio-button>
@@ -11,7 +11,7 @@
         <el-option label="草稿" value="draft" />
       </el-select>
       <el-button type="primary" @click="load(1)">查询</el-button>
-      <el-button v-if="!recycleMode" type="success" @click="goCreate">新建文章</el-button>
+      <el-button v-if="!recycleMode" type="primary" @click="goCreate">新建文章</el-button>
       <el-button v-else type="danger" plain @click="emptyRecycle">清空回收站</el-button>
     </div>
 
@@ -41,9 +41,9 @@
             <el-switch :model-value="row.status === 'published'" size="small" @change="togglePublish(row)" />
           </template>
         </el-table-column>
-        <el-table-column label="权重" width="110">
+        <el-table-column label="权重" width="110" align="center">
           <template #default="{ row }">
-            <el-input-number :model-value="row.sort_weight" :min="0" size="small" controls-position="right" @change="changeWeight(row, $event)" />
+            <el-input-number :model-value="row.sort_weight" :min="0" size="small" controls-position="right" class="inline-sort" @change="changeWeight(row, $event)" />
           </template>
         </el-table-column>
       </template>
@@ -52,13 +52,18 @@
       <el-table-column label="更新时间" width="180">
         <template #default="{ row }">{{ new Date(row.updated_at).toLocaleString('zh-CN') }}</template>
       </el-table-column>
-      <el-table-column label="操作" :width="recycleMode ? 160 : 200" fixed="right">
+      <el-table-column label="操作" :width="recycleMode ? 150 : 190" align="center" fixed="right">
         <template #default="{ row }">
           <template v-if="recycleMode">
             <el-button link type="primary" @click="handleRestore(row)">恢复</el-button>
             <el-button link type="danger" @click="handlePermanentDelete(row)">彻底删除</el-button>
           </template>
           <template v-else>
+            <el-tooltip :content="row.status === 'published' ? '前台查看' : '发布后可查看'" placement="top">
+              <span>
+                <el-button link type="primary" :disabled="row.status !== 'published'" @click="viewPost(row)">查看</el-button>
+              </span>
+            </el-tooltip>
             <el-button link type="primary" @click="goEdit(row.id)">编辑</el-button>
             <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
@@ -80,6 +85,10 @@
 </template>
 
 <script setup>
+/* 文章管理 + 回收站：列表/回收站用同一接口的 deleted 参数区分。
+ * 删除 = 软删进回收站（deleted=true 列出）；恢复 = restore；彻底删除 = permanent。
+ * 清空回收站会逐条永久删除（不可恢复）。行内置顶/推荐/发布/权重改动即时调接口。
+ */
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -118,6 +127,11 @@ async function load(p = 1) {
 
 function goCreate() {
   router.push({ name: 'admin-post-create' })
+}
+
+function viewPost(row) {
+  const { href } = router.resolve({ name: 'post-detail', params: { slug: row.slug } })
+  window.open(href, '_blank')
 }
 
 function goEdit(id) {
@@ -198,13 +212,6 @@ onMounted(() => load())
 </script>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
 
 .pager {
   display: flex;

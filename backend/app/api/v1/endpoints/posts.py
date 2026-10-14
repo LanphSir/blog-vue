@@ -1,4 +1,8 @@
-"""Post endpoints: public browsing + admin CRUD."""
+"""文章端点：公开浏览 + 管理端 CRUD（含软删除回收站）。
+
+公开列表/详情都按 ``deleted_at`` 过滤软删除文章；管理端支持回收站查看、
+恢复与彻底删除。POST/ PUT 后 commit 会使 ORM 对象过期，需 ``db.refresh`` 后再序列化。
+"""
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
@@ -9,6 +13,7 @@ from app.crud import post as post_crud
 from app.models.post import Post, Tag
 from app.schemas.common import ApiResponse, PageData, ok
 from app.schemas.post import (
+    ArchiveGroup,
     PostCreate,
     PostDetailOut,
     PostListOut,
@@ -65,12 +70,41 @@ async def list_posts(
     )
 
 
+# 归档路由必须声明在 /posts/{slug} 之前：/posts/{slug} 是贪婪路径参数，
+# 若反序注册则 "archive" 会被当作 slug 匹配到详情路由，归档将永远不可达
+@router.get("/posts/archive", summary="发布归档（公开）")
+async def get_archive(db: DbDep) -> ApiResponse[list[ArchiveGroup]]:
+    posts = await post_crud.list_archived_posts(db)
+    groups: dict[tuple[int, int], list[dict]] = {}
+    for post in posts:
+        moment = post.published_at or post.created_at
+        if moment is None:
+            continue
+        groups.setdefault((moment.year, moment.month), []).append(
+            {
+                "id": post.id,
+                "title": post.title,
+                "slug": post.slug,
+                "published_at": moment,
+            }
+        )
+    data = [
+        {"year": year, "month": month, "posts": items} for (year, month), items in groups.items()
+    ]
+    return ok(data)
+
+
 @router.get("/posts/{slug}", summary="文章详情（公开）")
-async def get_post(db: DbDep, slug: str) -> ApiResponse[PostDetailOut]:
+async def get_post(
+    db: DbDep,
+    slug: str,
+    count_view: bool = Query(True, description="false 时跳过浏览量自增（前端节流去重）"),
+) -> ApiResponse[PostDetailOut]:
     post = await post_crud.get_by_slug(db, slug)
     if post is None or post.status != "published":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在")
-    await post_crud.increment_view_count(db, post)
+    if count_view:
+        await post_crud.increment_view_count(db, post)
     await db.refresh(post)
     await db.refresh(post, attribute_names=["tags"])
     return ok(PostDetailOut.model_validate(post))
@@ -135,6 +169,7 @@ async def create_post(payload: PostCreate, db: DbDep, _: CurrentUser) -> ApiResp
     post = await post_crud.create_post(db, payload)
     await _apply_tags(db, post, payload.tag_ids)
     await db.commit()
+    # commit 后 ORM 对象被 expire，字段会变陈旧；refresh 后才有正确的 created_at 等值可序列化
     await db.refresh(post)
     return ok(PostOut.model_validate(post))
 

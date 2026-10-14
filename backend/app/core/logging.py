@@ -1,7 +1,7 @@
-"""Centralized logging with file rotation.
+"""集中式日志，带按天轮转。
 
-Writes to ``logs/app.log`` and rotates by day (keep 7 days). Also logs
-request/response info via the middleware defined in :mod:`app.main`.
+写入 ``logs/app.log`` 并按天轮转（保留 7 天）。debug 模式下打印更详细的行号
+信息便于排查；请求/响应日志由 :mod:`app.main` 中的中间件输出到这里。
 """
 
 import logging

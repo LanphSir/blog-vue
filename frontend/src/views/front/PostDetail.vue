@@ -12,6 +12,8 @@
           <span>{{ formatDate(post.published_at) }}</span>
           <span class="dot">·</span>
           <span>{{ post.view_count }} 阅读</span>
+          <span class="dot">·</span>
+          <span>约 {{ readingMinutes }} 分钟</span>
           <ColoredTag v-for="tag in post.tags" :key="tag.id" :text="tag.name" :color="tag.color" />
           <span class="spacer" />
           <button class="share-btn" @click="copyLink">复制链接</button>
@@ -66,6 +68,13 @@
 </template>
 
 <script setup>
+/* 文章详情页：正文 MdPreview + 右侧目录 MdCatalog。
+ * 两个关键点：
+ * - 阅读量 5 分钟节流：localStorage blog_viewed:{slug} 记录上次计数的时刻，
+ *   5 分钟内再次访问带 ?count_view=false 不重复加阅读；写失败（隐私模式）则不去重照常计数。
+ * - 阅读时长估算：中文按 400 字/分钟、英文按 200 词/分钟，取整保底 1 分钟。
+ * 组件经 setupMdEditor 懒加载，且先 import 了 preview.css 否则主题样式缺失。
+ */
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -109,12 +118,35 @@ async function copyLink() {
   }
 }
 
+const VIEW_THROTTLE_MS = 5 * 60 * 1000
+
+function shouldCountView(slug) {
+  const key = `blog_viewed:${slug}`
+  try {
+    const last = Number(localStorage.getItem(key) || 0)
+    if (Date.now() - last < VIEW_THROTTLE_MS) return false
+    localStorage.setItem(key, String(Date.now()))
+  } catch {
+    // 隐私模式等场景不去重，照常计数
+  }
+  return true
+}
+
+const readingMinutes = computed(() => {
+  const text = post.value?.content || ''
+  const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length
+  const latin = (text.replace(/[\u4e00-\u9fff]/g, '').match(/[A-Za-z0-9]+/g) || []).length
+  const minutes = cjk / 400 + latin / 200
+  return Math.max(1, Math.round(minutes))
+})
+
 async function load() {
   loading.value = true
   try {
     const slug = route.params.slug
+    const countView = shouldCountView(slug)
     const [detailRes, neighborsRes] = await Promise.all([
-      getPostBySlug(slug),
+      getPostBySlug(slug, { count_view: countView }),
       getPostNeighbors(slug),
     ])
     post.value = detailRes.data

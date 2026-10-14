@@ -5,6 +5,9 @@
         <span class="notice-icon">📢</span>
         <span class="notice-label">{{ notice.title }}</span>
         <span class="notice-text">{{ notice.content }}</span>
+        <router-link v-if="notice.id && notice.content" class="notice-more" :to="{ name: 'notice', params: { id: notice.id } }">
+          查看详情 →
+        </router-link>
         <button class="notice-close" aria-label="关闭公告" @click="dismiss">
           <el-icon><Close /></el-icon>
         </button>
@@ -14,6 +17,10 @@
 </template>
 
 <script setup>
+/* 顶部横幅公告：展示 type=banner 且未关闭的公告。
+ * 关闭走 dismissNotice 写入「版本号」，与 notice.js 的 isNoticeDismissed 配套，
+ * 这样公告内容更新（版本+1）后关闭用户会重新看到。
+ */
 import { computed, ref, watch } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 import { useConfigStore } from '@/stores/config'
@@ -70,6 +77,19 @@ function dismiss() {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--blog-text);
+}
+
+.notice-more {
+  flex-shrink: 0;
+  margin-left: 12px;
+  color: var(--blog-primary);
+  font-size: 13px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.notice-more:hover {
+  text-decoration: underline;
 }
 
 .notice-close {

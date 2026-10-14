@@ -31,6 +31,10 @@
 </template>
 
 <script setup>
+/* 后台登录：用户名密码 + 图形验证码。
+ * 验证码接口返回 arraybuffer，需要先转 base64 当 <img> 源；验证码 id 在响应头 X-Captcha-Id。
+ * 登录成功按 ?redirect 或 /admin 跳转；失败刷新验证码并清空输入。
+ */
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'

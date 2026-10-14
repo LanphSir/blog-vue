@@ -1,3 +1,5 @@
+// 认证 store：token 直接存 localStorage（键 blog_token），刷新后页面初始化即恢复。
+// login 成功同时写内存 ref 与 localStorage，logout 清两处，避免后台刷新残留登录态。
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getMe, login as loginApi } from '@/api/auth'

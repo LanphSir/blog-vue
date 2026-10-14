@@ -26,6 +26,9 @@
 </template>
 
 <script setup>
+/* 标签云页：全部可见标签，字号/底色随文章数缩放（tagItemStyle 按 maxCount 归一化）。
+ * 只展示 visible!==false 的标签；按文章数降序、同名升序排。
+ */
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReveal } from '@/composables/useReveal'

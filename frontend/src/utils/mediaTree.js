@@ -1,3 +1,6 @@
+// 把后端返回的「目录→文件数」扁平列表聚合成 年/月/日 树，供媒体库的
+// el-tree（buildFolderTree）与 el-cascader（toCascaderOptions）共用。
+// 目录 dir 形如 "2026/10" 或 "root"；root 单独归到「未分类」节点。
 export function buildFolderTree(folders) {
   const rootEntry = folders.find((f) => f.dir === 'root')
   const rootCount = rootEntry ? rootEntry.count : 0

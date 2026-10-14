@@ -1,4 +1,9 @@
-"""Category and tag endpoints: public lists + admin CRUD."""
+"""分类与标签端点：公开列表 + 管理端 CRUD。
+
+公开接口把文章计数附加到每个分类/标签上；分类树把子分类挂到父分类下并把子节点
+计数上卷到父级。管理端用唯一约束的 IntegrityError 来判断名称/Slug 冲突，
+并禁止删除仍含子分类或文章的父分类。
+"""
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
@@ -52,6 +57,7 @@ async def list_category_tree(db: DbDep) -> ApiResponse[list[CategoryTreeOut]]:
             children=[],
         )
 
+    # 按 parent_id 挂接子节点并上卷计数；无父或父缺失的节点视为根节点
     roots: list[CategoryTreeOut] = []
     for cat in categories:
         node = by_id[cat.id]
@@ -85,6 +91,7 @@ async def create_category(
     try:
         await db.commit()
     except IntegrityError:
+        # 名称/Slug 有唯一约束，靠数据库约束捕获冲突比先查后写更可靠（无竞态窗口）
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="分类名称或 Slug 已存在"

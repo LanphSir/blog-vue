@@ -1,4 +1,9 @@
-"""Authentication endpoints: login, captcha, and current user."""
+"""认证端点：验证码、登录与当前用户。
+
+登录需携带 captcha_id + captcha_code 通过验证码校验；当 captcha_id 为空时跳过
+校验（向后兼容测试等场景，见 AGENTS.md）。登录成功签发 JWT，后续鉴权走
+Authorization: Bearer。
+"""
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response

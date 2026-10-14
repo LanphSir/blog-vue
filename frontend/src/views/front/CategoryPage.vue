@@ -35,6 +35,10 @@
 </template>
 
 <script setup>
+/* 全部分类页：树形展示所有分类及其文章预览。
+ * 每个分类（含子分类）并行拉最多 8 篇文章，postsByGroup 按分类 id 存，
+ * 分类无文章时显示空提示。依赖 useReveal 的 MutationObserver 让异步渲染的区块也能进场动画。
+ */
 import { onMounted, ref } from 'vue'
 import PostCard from '@/components/PostCard.vue'
 import { useReveal } from '@/composables/useReveal'

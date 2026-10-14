@@ -1,0 +1,64 @@
+/* 后台通用排版：由 AdminLayout 引入，统一卡片 / 工具栏 / 表格 / 操作列的观感。
+ * 只写管理端作用域样式（.admin-layout 前缀），不影响前台；
+ * 颜色一律取 Element Plus 的 CSS 变量，暗色模式自动跟随。
+ */
+
+.admin-main {
+  padding: 16px 20px;
+}
+
+/* 每页顶部工具栏：元素水平排布、统一间距（替代各页自己写的 .add-btn/.toolbar） */
+.admin-layout .page-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.admin-layout .page-toolbar .spacer {
+  flex: 1;
+}
+
+.admin-layout .el-card {
+  border-radius: 12px;
+}
+
+.admin-layout .el-card__body {
+  padding: 18px 20px;
+}
+
+/* 表格：统一表头底色与行高，行内开关/输入框所在单元格内容垂直居中 */
+.admin-layout .el-table th.el-table__cell {
+  background-color: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
+  font-weight: 600;
+}
+
+.admin-layout .el-table .el-table__cell {
+  padding: 9px 0;
+}
+
+.admin-layout .el-table .cell {
+  line-height: 26px;
+}
+
+/* 行内即改即存的排序/权重数字框：固定宽度，保证步进按钮不被列宽裁切 */
+.admin-layout .el-table .inline-sort {
+  width: 86px;
+}
+
+.admin-layout .el-table .inline-sort .el-input__inner {
+  text-align: center;
+}
+
+/* 操作列 link 按钮统一间距（含 el-dropdown 参与排布时） */
+.admin-layout .el-table .cell > .el-button.is-link + .el-button.is-link,
+.admin-layout .el-table .cell > span + .el-button.is-link {
+  margin-left: 14px;
+}
+
+/* 提示说明条统一与下方内容留距（公告/菜单页顶部的 el-alert） */
+.admin-layout .el-alert.tip {
+  margin-bottom: 14px;
+}

@@ -1,6 +1,8 @@
 <template>
   <el-card>
-    <el-button type="primary" @click="openDialog()" class="add-btn">新增轮播图</el-button>
+    <div class="page-toolbar">
+      <el-button type="primary" @click="openDialog()">新增轮播图</el-button>
+    </div>
 
     <el-table :data="banners" stripe v-loading="loading">
       <el-table-column prop="title" label="标题" min-width="160" />
@@ -18,13 +20,17 @@
           <span v-else class="no-img">无</span>
         </template>
       </el-table-column>
-      <el-table-column prop="sort_order" label="排序" width="80" />
-      <el-table-column label="状态" width="90">
+      <el-table-column label="排序" width="110" align="center">
+        <template #default="{ row }">
+          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" class="inline-sort" @change="updateSort(row)" />
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="90" align="center">
         <template #default="{ row }">
           <el-switch v-model="row.enabled" @change="toggleEnabled(row)" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160">
+      <el-table-column label="操作" width="130" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDialog(row)">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
@@ -46,9 +52,6 @@
         <el-form-item label="跳转链接">
           <el-input v-model="form.link" placeholder="如 /posts 或完整 URL（可选）" />
         </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort_order" :min="0" />
-        </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="form.enabled" />
         </el-form-item>
@@ -62,6 +65,9 @@
 </template>
 
 <script setup>
+/* 轮播图管理：列表 + 新增/编辑弹窗。图片一律经 MediaPicker 选（本地上传或媒体库）。
+ * 行内 el-switch 直接改 enabled 即存库；sort_order 决定首页轮播顺序。
+ */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -105,15 +111,27 @@ async function handleSave() {
   saving.value = true
   try {
     if (form.value.id) {
-      await adminUpdateBanner(form.value.id, form.value)
+      // 排序只在行内即改即存，明确字段白名单避免回写 sort_order/id 等
+      const partial = { title: '', subtitle: '', image: null, link: null, enabled: true }
+      for (const k of Object.keys(partial)) partial[k] = form.value[k]
+      await adminUpdateBanner(form.value.id, partial)
     } else {
-      await adminCreateBanner(form.value)
+      const { id, ...rest } = form.value
+      await adminCreateBanner(rest)
     }
     ElMessage.success('已保存')
     dialogVisible.value = false
     load()
   } finally {
     saving.value = false
+  }
+}
+
+async function updateSort(row) {
+  try {
+    await adminUpdateBanner(row.id, { sort_order: row.sort_order })
+  } catch {
+    load()
   }
 }
 
@@ -132,9 +150,6 @@ onMounted(load)
 </script>
 
 <style scoped>
-.add-btn {
-  margin-bottom: 16px;
-}
 
 .no-img {
   color: var(--blog-text-secondary);

@@ -1,4 +1,4 @@
-"""Media library schemas."""
+"""媒体库模型：MediaAssetOut 由 ORM 实例序列化，供媒体库列表/详情展示。"""
 
 from datetime import datetime
 

@@ -74,6 +74,11 @@
 </template>
 
 <script setup>
+/* 媒体库：左侧目录树 + 右侧图片列表。
+ * 删除带引用保护：后端 409 表示被引用，需二次确认走 force=true 强制删除；
+ * 删除最后一页最后一条时回退一页，避免空页。上传用 el-upload 仅在此页做
+ * 「图片入库」主入口，其余页面选图统一走 MediaPicker。
+ */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'

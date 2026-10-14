@@ -3,6 +3,9 @@
 </template>
 
 <script setup>
+/* 彩色标签：把 color 转成三个 CSS 变量（背景/文字/边框）供标签样式使用。
+ * 对非法/空色值回退到中性灰，避免脏数据把标签变成不可读。
+ */
 import { computed } from 'vue'
 
 const props = defineProps({

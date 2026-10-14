@@ -45,6 +45,10 @@
 </template>
 
 <script setup>
+/* 媒体库网格：按目录分组的图片选择器，供 MediaPicker 与 MarkdownEditor 复用。
+ * 目录用 el-cascader（checkStrictly 支持选中父级目录），目录树来自 mediaTree 聚合。
+ * isImage 用 mime 或扩展名兜底判断是否图片，非图片格子显示扩展名占位。
+ */
 import { computed, onMounted, ref } from 'vue'
 import { adminListMedia, adminMediaFolders } from '@/api/upload'
 import { toCascaderOptions } from '@/utils/mediaTree'

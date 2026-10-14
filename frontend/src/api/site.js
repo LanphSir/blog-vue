@@ -1,3 +1,5 @@
+// 站点相关接口：站点配置、统计、轮播、友链、社交链接、公告、导航菜单。
+// 更新配置统一走 PUT /admin/site/config，后端会校验白名单键，非法值整批 422 拒绝。
 import request from './index'
 
 export const getSiteConfig = () => request.get('/site/config')

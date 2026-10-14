@@ -1,3 +1,10 @@
+"""文章的请求/响应模型。
+
+Create 的 tag_ids 单独承载标签关联（由端点写入关联表）；Update 全部可选以支持
+局部更新。PostListOut 额外带 category 与 tags，PostDetailOut 额外带正文 content；
+ArchiveGroup 为归档接口按月分组的结果结构。
+"""
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -76,3 +83,16 @@ class PostNeighbor(BaseModel):
 class PostNeighborsOut(BaseModel):
     previous: PostNeighbor | None = None
     next: PostNeighbor | None = None
+
+
+class ArchiveEntry(BaseModel):
+    id: int
+    title: str
+    slug: str
+    published_at: datetime | None = None
+
+
+class ArchiveGroup(BaseModel):
+    year: int
+    month: int
+    posts: list[ArchiveEntry]

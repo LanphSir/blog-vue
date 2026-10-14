@@ -105,6 +105,11 @@
 </template>
 
 <script setup>
+/* 首页：Hero 轮播 + 统计 + 标签筛选 + 文章流 + 侧边栏。
+ * 关键约束：当前激活标签的唯一来源是 route.query.tag_id（switchTag 用 router.replace 写 query），
+ * 标签栏、文章流、导航菜单都读它，绝不能搞一份本地 tab state——否则地址与页面状态会失同步。
+ * 另外侧边栏/统计等仅前台展示；文章列表分页由 route 驱动 watch 重新加载。
+ */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Right } from '@element-plus/icons-vue'

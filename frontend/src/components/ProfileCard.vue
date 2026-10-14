@@ -24,6 +24,9 @@
 </template>
 
 <script setup>
+/* 侧边简介卡：头像/昵称/简介 + 社交链接徽章。
+ * 徽章样式/字母/标题统一走 platforms 的预设；custom 平台回退用 label 取首字母。
+ */
 import { computed } from 'vue'
 import { useConfigStore } from '@/stores/config'
 import { platformMeta } from '@/utils/platforms'

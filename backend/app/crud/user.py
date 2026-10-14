@@ -1,4 +1,8 @@
-"""User CRUD operations."""
+"""用户 CRUD 操作。
+
+目前仅登录、鉴权与初始管理员创建使用：按用户名查询用于登录校验，按 id 查询
+用于 JWT 解析后的当前用户加载，create 供启动时播种管理员账户。
+"""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

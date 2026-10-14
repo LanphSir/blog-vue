@@ -69,6 +69,11 @@
 </template>
 
 <script setup>
+/* 全局搜索浮层：Ctrl/Cmd+K 唤起，teleport 到 body，带搜索历史与键盘上下选择。
+ * 注意结果高亮用 highlight() 把关键词包 <mark>，其中对 HTML 特殊字符先做转义、
+ * 正则元字符做 escape，避免用户输入被当正则/破坏页面结构。
+ * 历史复用 searchHistory（上限 10 条、localStorage 容错）。
+ */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Clock, Close, Search } from '@element-plus/icons-vue'

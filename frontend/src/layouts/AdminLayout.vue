@@ -20,6 +20,19 @@
       <el-header class="admin-header">
         <span class="title">{{ route.meta.title || '管理后台' }}</span>
         <div class="user-info">
+          <el-tooltip content="新标签页打开前台首页" placement="bottom">
+            <el-button link type="info" @click="openFront">
+              <el-icon><HomeFilled /></el-icon>
+              <span>前台首页</span>
+            </el-button>
+          </el-tooltip>
+          <el-switch
+            :model-value="themeStore.isDark"
+            @change="themeStore.toggle()"
+            inline-prompt
+            active-text="暗"
+            inactive-text="亮"
+          />
           <span>{{ authStore.user?.username }}</span>
           <el-button link type="danger" @click="handleLogout">退出登录</el-button>
         </div>
@@ -32,16 +45,24 @@
 </template>
 
 <script setup>
+/* 后台主布局：左侧菜单 + 顶栏 + 内容区。
+ * 坑：后台页不需要前台那些花哨背景，进入时强制 data-bg="none"，
+ * 离开（onUnmounted）时恢复 applyBackground()——否则会残留「后台无背景」的状态到前台。
+ */
 import { onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { HomeFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
+import { useThemeStore } from '@/stores/theme'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const configStore = useConfigStore()
+// 实例化即应用已保存的明暗主题（watch immediate）——直达/刷新后台时也生效
+const themeStore = useThemeStore()
 
 onMounted(() => {
   if (!authStore.user) {
@@ -55,6 +76,10 @@ onMounted(() => {
 onUnmounted(() => {
   configStore.applyBackground()
 })
+
+function openFront() {
+  window.open('/', '_blank')
+}
 
 function handleLogout() {
   authStore.logout()

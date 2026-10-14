@@ -1,3 +1,5 @@
+// 社交平台预设：名称/品牌色/徽章字母。平台要么是这里的预设 key，要么是 custom（自己填 label）。
+// platformMeta 对未知/空平台返回 null，调用方据此回退到中性灰样式。
 export const PLATFORMS = {
   github: { name: 'GitHub', color: '#333333', letter: 'G' },
   juejin: { name: '掘金', color: '#1E80FF', letter: '掘' },

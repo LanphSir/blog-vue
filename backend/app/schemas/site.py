@@ -1,3 +1,9 @@
+"""站点配置、友链、轮播图、菜单、社交链接、公告等的请求/响应模型。
+
+Out 类均用 from_attributes 由 ORM 直接序列化；Update 类全可选以支持局部更新；
+MenuNodeOut 是公开导航树节点（含 children 递归）；SiteStats 为站点统计结果。
+"""
+
 from datetime import datetime
 
 from pydantic import BaseModel

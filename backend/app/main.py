@@ -1,7 +1,7 @@
-"""FastAPI application entry point.
+"""FastAPI 应用入口。
 
-Initializes logging, CORS, request logging middleware, exception handlers
-and the API router. On startup, creates tables and seeds default data.
+初始化日志、CORS、请求日志中间件、统一异常处理器与 API 路由。启动时创建表并
+写入默认/演示数据（见 seed.py）。所有响应统一走 {code, message, data} 信封。
 """
 
 import logging
@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.feed import router as feed_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
@@ -31,6 +32,7 @@ logger = logging.getLogger("blog")
 async def lifespan(app: FastAPI):
     setup_logging(settings.debug)
     logger.info("Starting %s (debug=%s)", settings.app_name, settings.debug)
+    # StaticFiles(directory=...) 会在导入时因目录不存在而抛错，所以必须在挂载前先建目录
     settings.upload_path.mkdir(parents=True, exist_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -94,6 +96,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(api_router, prefix="/api/v1")
+# feed 同时挂载在根路径（阅读器直接抓取）与 /api/v1 下（开发/nginx 代理走这里）
+app.include_router(feed_router)
+app.include_router(feed_router, prefix="/api/v1")
+# 挂载前再次确保目录存在（此处为模块级执行，同样满足 StaticFiles 的目录前提）
 settings.upload_path.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_path), name="uploads")
 

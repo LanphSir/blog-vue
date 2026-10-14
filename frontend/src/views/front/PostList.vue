@@ -96,6 +96,11 @@
 </template>
 
 <script setup>
+/* 文章列表页：搜索 + 分类导航（两级） + 标签筛选 + 分页。
+ * 筛选状态全部来自 route.query（category_id/tag_id/keyword 只在本页输入框局部），
+ * pickCategory/clearTag 用 router.replace 写 query，watch route.query 统一触发 load(1)，
+ * 避免多份状态打架。
+ */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Close, Search } from '@element-plus/icons-vue'

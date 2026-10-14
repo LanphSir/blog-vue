@@ -1,4 +1,8 @@
-"""Social link endpoints: public visible list + admin CRUD."""
+"""社交链接端点：公开可见列表 + 管理端 CRUD。
+
+社交链接的 platform 是预设键或 custom（custom 时需带 label）；url 必须满足
+http(s):// 或 mailto: 前缀（_validate_url），防注入与误配。公开接口仅返回可见项。
+"""
 
 from fastapi import APIRouter, HTTPException, status
 

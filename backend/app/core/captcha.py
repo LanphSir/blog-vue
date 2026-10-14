@@ -1,4 +1,9 @@
-"""Simple in-memory captcha store with TTL."""
+"""验证码内存存储，带 TTL 过期。
+
+使用进程内 OrderedDict 保存验证码（键为 id，值为验证码与过期时间戳），
+验证通过即弹出（一次性消费）。注意：内存存储不跨 worker 共享，多进程部署时
+验证码会相互独立（AGENTS.md 已注明，属已知边界，勿当作 bug 修改）。
+"""
 
 import secrets
 import time

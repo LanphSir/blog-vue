@@ -44,6 +44,12 @@
 </template>
 
 <script setup>
+/* 统一选图入口：所有「站点配置/轮播/友链/文章封面」的图片都必须经此组件选。
+ * 它把「本地上传」和「媒体库选取」两个 tab 收敛成一个 modelValue 字符串 URL。
+ * 为什么禁用裸 el-upload：后台要求图片一律进媒体库并注册 media_assets 行，
+ * 裸上传不经过 MediaLibraryGrid，目录树/引用保护/清理都会失真。
+ * 上传成功后除了回填 preview，还要 reload 一次图库让新文件立即可见。
+ */
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, UploadFilled } from '@element-plus/icons-vue'

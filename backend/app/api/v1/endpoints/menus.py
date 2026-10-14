@@ -1,4 +1,9 @@
-"""Navigation menu endpoints: public composed tree + admin CRUD."""
+"""导航菜单端点：公开组合树 + 管理端 CRUD。
+
+公开树把"首页"作为合成节点固定放在首位（不入库），并跳过隐藏菜单及其子项；
+当菜单表为空时回退到内置默认菜单，保证即使配置被清空站点导航也能用。
+管理端强制约束：最多两级、"栏目下拉必须位于顶级"等（见 _validate_menu）。
+"""
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -69,8 +74,10 @@ async def _validate_menu(
 async def get_menus(db: DbDep) -> ApiResponse[list[MenuNodeOut]]:
     menus = await site_crud.list_menus(db)
     if not menus:
+        # 空表回退到内置默认菜单，避免用户删光菜单后站点导航失效
         return ok(_default_menus())
 
+    # 只取可见菜单；隐藏的父项会连同其子项一并被跳过（子项挂在隐藏父下不可达）
     visible = [m for m in menus if m.visible]
     children_map: dict[int, list[MenuNodeOut]] = {}
     for m in visible:

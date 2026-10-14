@@ -49,6 +49,10 @@
 </template>
 
 <script setup>
+/* 文章卡片：列表里每篇文章的封面/置顶推荐/分类/标签/元信息展示。
+ * 整个卡片可点进入详情；分类徽章与标签都带 @click.stop 阻断卡片跳转、
+ * 各自跳去对应分类/标签列表，避免事件冒泡触发 goDetail。
+ */
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import ColoredTag from '@/components/ColoredTag.vue'

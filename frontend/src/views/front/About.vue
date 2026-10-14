@@ -106,6 +106,11 @@
 </template>
 
 <script setup>
+/* 关于页：头部头像/社交 + 自我介绍（site_about_markdown 富文本）+ 分类占比 + 统计账本 + 最近发布。
+ * 没有专用后端表，全部由公开接口组装：stats/categories/tags/posts。
+ * 分类占比只统计顶级分类（parent_id 为空）且有文章数>0 的；用 Promise.allSettled
+ * 保证单个接口失败不影响页面其余区块。
+ */
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import 'md-editor-v3/lib/preview.css'

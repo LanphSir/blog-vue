@@ -15,6 +15,8 @@
 </template>
 
 <script setup>
+/* 友链页：展示启用的友链卡片，点击新窗口打开。
+ */
 import { onMounted, ref } from 'vue'
 import { getFriends } from '@/api/site'
 

@@ -1,4 +1,9 @@
-"""Shared API dependencies: database session and current-user extraction."""
+"""共享 API 依赖：数据库会话与当前用户解析。
+
+``DbDep`` 供所有端点取会话；``CurrentUser`` 则解析 Bearer 令牌、加载对应用户并
+做鉴权，未登录或令牌无效统一抛 401。管理员路由通过声明 ``CurrentUser`` 参数
+来获得鉴权与当前用户对象。
+"""
 
 from typing import Annotated
 
@@ -12,6 +17,7 @@ from app.core.database import get_db
 from app.crud import user as user_crud
 from app.models.user import User
 
+# auto_error=False：无凭证时由下方手动统一抛 401，便于所有异常走同一响应体
 bearer_scheme = HTTPBearer(auto_error=False)
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]

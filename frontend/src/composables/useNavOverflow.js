@@ -1,3 +1,10 @@
+// 导航溢出折叠：导航项超出容器宽度时，把多出的项收进「更多」下拉。
+// 测宽方式很关键——直接量渲染中的节点会引入回流闪烁，所以这里把 nav 克隆一份
+// 挂到屏幕外（left:-99999px）再量每个子项的 getBoundingClientRect().width，
+// 并把宽度按 item.key 缓存在 localStorage（blog_nav_item_widths），
+// 这样二次访问能一帧内稳定落位。
+// 两个隐藏坑：首项永不折叠（MORE_FALLBACK 就是「更多」自身占用宽度）；
+// 字体加载完成后所有宽度都会变，必须清空缓存重测（fontsRedone 只跑一次）。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const CACHE_KEY = 'bl…idths'

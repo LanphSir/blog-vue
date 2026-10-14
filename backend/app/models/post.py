@@ -1,3 +1,10 @@
+"""文章、分类与标签的 ORM 模型。
+
+文章支持软删除（deleted_at）、置顶（is_top）与自定义排序（sort_weight）；分类
+两级自引用层级；标签通过 post_tags 关联表与文章多对多。所有公开查询都要过滤
+deleted_at（见 crud/post.py），保持列表口径一致。
+"""
+
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text, func

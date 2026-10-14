@@ -1,3 +1,10 @@
+// 全局站点配置 store。
+// 关键点：
+// - fetchConfig 并行拉 menus / social-links / notices / site-config，前三者各自 .catch 回退空数组，
+//   任何一个挂掉都不影响其它，保证「配置坏了站点照常跑」。
+// - applyAccentColor 把强调色注入 CSS 变量 --blog-primary；applyBackground 按枚举把
+//   data-bg 打在 <html> 上（styles/index.css 的 body::before/::after 根据 data-bg 渲染背景层）。
+// - siteMenus 在有数据时用真菜单，否则回退到内置 defaultMenus（首启动兜底）。
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getMenus, getNotices, getSiteConfig, getSocialLinks } from '@/api/site'

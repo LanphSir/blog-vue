@@ -1,6 +1,6 @@
 <template>
   <el-card>
-    <div class="toolbar">
+    <div class="page-toolbar">
       <el-button type="primary" @click="openCreate">新增友链</el-button>
     </div>
 
@@ -23,8 +23,12 @@
           <el-switch :model-value="row.visible" @change="(v) => toggleVisible(row, v)" />
         </template>
       </el-table-column>
-      <el-table-column prop="sort_order" label="排序" width="70" align="center" />
-      <el-table-column label="操作" width="140">
+      <el-table-column label="排序" width="110" align="center">
+        <template #default="{ row }">
+          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" class="inline-sort" @change="updateSort(row)" />
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="130" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
@@ -46,10 +50,6 @@
         <el-form-item label="图标">
           <MediaPicker v-model="form.icon" tip="方形小图效果最佳" :preview-width="56" :preview-height="56" />
         </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort_order" :min="0" controls-position="right" />
-          <span class="hint">数字越小越靠前</span>
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -60,6 +60,8 @@
 </template>
 
 <script setup>
+/* 友链管理：列表 + 新增/编辑弹窗。图片经 MediaPicker；地址强制 http(s):// 开头。
+ */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -87,6 +89,14 @@ async function load() {
   }
 }
 
+async function updateSort(row) {
+  try {
+    await adminUpdateFriend(row.id, { sort_order: row.sort_order })
+  } catch {
+    load()
+  }
+}
+
 async function toggleVisible(row, value) {
   await adminUpdateFriend(row.id, { visible: value })
   row.visible = value
@@ -94,7 +104,7 @@ async function toggleVisible(row, value) {
 }
 
 function openCreate() {
-  form.value = emptyForm()
+  form.value = { ...emptyForm(), sort_order: links.value.length }
   dialogVisible.value = true
 }
 
@@ -119,6 +129,8 @@ async function handleSave() {
   saving.value = true
   try {
     if (form.value.id) {
+      // 排序只在行内即改即存，编辑弹窗不回写
+      delete payload.sort_order
       await adminUpdateFriend(form.value.id, payload)
       ElMessage.success('已更新')
     } else {
@@ -143,9 +155,6 @@ onMounted(load)
 </script>
 
 <style scoped>
-.toolbar {
-  margin-bottom: 16px;
-}
 
 .link {
   color: var(--blog-primary);

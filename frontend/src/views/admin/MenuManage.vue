@@ -3,7 +3,9 @@
     <el-alert type="info" :closable="false" class="tip">
       “首页”由系统固定显示在导航最前，无需配置；导航最多两级；删除父项会连带删除其子项。
     </el-alert>
-    <el-button type="primary" @click="openDialog()" class="add-btn">新增菜单</el-button>
+    <div class="page-toolbar">
+      <el-button type="primary" @click="openDialog()">新增菜单</el-button>
+    </div>
 
     <el-table :data="tree" stripe v-loading="loading" row-key="id" default-expand-all :tree-props="{ children: 'children' }">
       <el-table-column label="名称" min-width="180">
@@ -17,9 +19,9 @@
       <el-table-column prop="path" label="路径/URL" min-width="200" show-overflow-tooltip>
         <template #default="{ row }">{{ row.path || '-' }}</template>
       </el-table-column>
-      <el-table-column label="排序" width="90">
+      <el-table-column label="排序" width="110" align="center">
         <template #default="{ row }">
-          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" @change="patch(row, { sort_order: row.sort_order })" />
+          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" class="inline-sort" @change="patch(row, { sort_order: row.sort_order })" />
         </template>
       </el-table-column>
       <el-table-column label="显示" width="80">
@@ -27,7 +29,7 @@
           <el-switch v-model="row.visible" @change="patch(row, { visible: row.visible })" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150">
+      <el-table-column label="操作" width="130" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDialog(row)">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
@@ -84,9 +86,6 @@
           </el-popover>
           <el-button v-if="form.icon" link type="danger" size="small" @click="form.icon = null">清除</el-button>
         </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort_order" :min="0" />
-        </el-form-item>
         <el-form-item label="显示">
           <el-switch v-model="form.visible" />
         </el-form-item>
@@ -100,6 +99,11 @@
 </template>
 
 <script setup>
+/* 导航菜单管理：树形展示，最多两级（后端兜底校验）。
+ * 前端把平铺列表合成两级树；类型分 内部链接/外部链接/栏目下拉，
+ * 其中栏目下拉（category）必须顶级且不填 path/父级。
+ * 删除父项会连带删除子项，删除前会提示。
+ */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { adminCreateMenu, adminDeleteMenu, adminGetMenus, adminUpdateMenu } from '@/api/site'
@@ -182,6 +186,8 @@ async function handleSave() {
   try {
     const payload = buildPayload()
     if (form.value.id) {
+      // 排序只在行内即改即存，编辑弹窗不回写
+      delete payload.sort_order
       await adminUpdateMenu(form.value.id, payload)
     } else {
       await adminCreateMenu(payload)
@@ -230,10 +236,6 @@ onMounted(load)
 <style scoped>
 .tip {
   margin-bottom: 14px;
-}
-
-.add-btn {
-  margin-bottom: 16px;
 }
 
 .tree-name {

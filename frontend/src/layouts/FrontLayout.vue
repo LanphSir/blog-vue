@@ -164,6 +164,13 @@
 </template>
 
 <script setup>
+/* 前台总布局：顶栏导航 + 内容区 + 页脚友链/备案 + 回到顶部 + 搜索 + 弹窗公告 + 线条背景。
+ * 要点：
+ * - 导航项来自 configStore.siteMenus()（数据或内置兜底），经 useNavOverflow 折叠到「更多」。
+ * - 栏目下拉（type=category）与自定义二级菜单各自渲染；is_external 外链新窗口打开。
+ * - 「分类」菜单项的激活态即 route.query.category_id（首页分类标签的单一路由来源）。
+ * - ParticleLines 仅在 site_background=line 时挂载，避免白跑粒子动画。
+ */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowDown, MoreFilled, Search, Top, TopRight } from '@element-plus/icons-vue'

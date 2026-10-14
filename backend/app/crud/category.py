@@ -1,4 +1,8 @@
-"""Category and Tag CRUD operations."""
+"""分类与标签的 CRUD 操作。
+
+包含按 `sort_order` 排序的列表查询，以及统计每分类/标签下的文章数。文章计数
+查询都会排除软删除文章，保证首页/侧栏数字与公开列表口径一致。
+"""
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +21,7 @@ async def list_tags(db: AsyncSession) -> list[Tag]:
 
 
 async def count_posts_by_category(db: AsyncSession) -> dict[int, int]:
+    # 统计时排除软删除文章，避免与公开列表的数字不一致
     rows = (
         await db.execute(
             select(Post.category_id, func.count(Post.id))
@@ -58,7 +63,7 @@ async def get_tag_by_slug(db: AsyncSession, slug: str) -> Tag | None:
 
 
 async def get_descendant_category_ids(db: AsyncSession, category_id: int) -> list[int]:
-    """Return the category id plus all direct child ids (two-level hierarchy)."""
+    """返回该分类 id 及其所有直接子分类 id（两级层级）。首页选中顶级分类时需连同子分类一起查询。"""
     result = await db.execute(select(Category.id).where(Category.parent_id == category_id))
     child_ids = [row[0] for row in result.all()]
     return [category_id, *child_ids]

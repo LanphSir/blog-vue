@@ -17,12 +17,14 @@
 | GET | `/categories/tree` | 分类树（post_count 聚合子分类） |
 | GET | `/tags` | 标签列表（含文章数与 color） |
 | GET | `/posts` | 文章分页列表 |
-| GET | `/posts/{slug}` | 文章详情（浏览量 +1） |
+| GET | `/posts/{slug}` | 文章详情（浏览量 +1；`?count_view=false` 跳过计数） |
+| GET | `/posts/archive` | 归档列表：仅已发布，按年/月倒序分组 `[{year, month, posts:[{id, slug, title, published_at}]}]` |
 | GET | `/posts/{slug}/neighbors` | 文章上一篇/下一篇 |
 | GET | `/menus` | 导航菜单树（两级；首位固定拼接“首页”项；仅 visible，隐藏父连子剔除；表空回退默认菜单；默认菜单首次启动种入表内可后台管理，标记 `menus_seeded` 防重复回填） |
 | GET | `/social-links` | 社交链接{id, platform, label, url, sort_order}（仅 visible，按排序） |
 | GET | `/notices` | 启用公告列表（banner/dialog 含 content；page 的 content 为 null） |
 | GET | `/notices/{id}` | 公告详情（含 content；已停用返回 404） |
+| GET | `/feed.xml` | RSS 2.0 订阅（最新 20 篇；纯 XML 非信封；同路径另挂 `/api/v1/feed.xml` 供开发代理/nginx 转发） |
 
 ### 文章列表参数
 

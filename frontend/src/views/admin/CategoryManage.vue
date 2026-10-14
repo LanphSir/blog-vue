@@ -1,6 +1,8 @@
 <template>
   <el-card>
-    <el-button type="primary" @click="openDialog()" class="add-btn">新增分类</el-button>
+    <div class="page-toolbar">
+      <el-button type="primary" @click="openDialog()">新增分类</el-button>
+    </div>
 
     <el-table :data="tree" stripe v-loading="loading" row-key="id" default-expand-all :tree-props="{ children: 'children' }">
       <el-table-column prop="name" label="名称" min-width="180">
@@ -10,23 +12,23 @@
       </el-table-column>
       <el-table-column prop="slug" label="Slug" min-width="140" />
       <el-table-column prop="post_count" label="文章数" width="90" />
-      <el-table-column label="排序" width="80">
+      <el-table-column label="排序" width="110" align="center">
         <template #default="{ row }">
-          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" @change="updateSort(row)" />
+          <el-input-number v-model="row.sort_order" :min="0" size="small" controls-position="right" class="inline-sort" @change="updateSort(row)" />
         </template>
       </el-table-column>
-      <el-table-column label="显示" width="80">
+      <el-table-column label="显示" width="80" align="center">
         <template #default="{ row }">
           <el-switch v-model="row.visible" @change="updateVisible(row)" />
         </template>
       </el-table-column>
-      <el-table-column label="颜色" width="80">
+      <el-table-column label="颜色" width="80" align="center">
         <template #default="{ row }">
           <span v-if="row.color" class="color-dot" :style="{ background: row.color }" />
           <span v-else class="color-none">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150">
+      <el-table-column label="操作" width="130" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDialog(row)">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
@@ -47,9 +49,6 @@
             <el-option v-for="root in rootCategories" :key="root.id" :label="root.name" :value="root.id" :disabled="root.id === form.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort_order" :min="0" />
-        </el-form-item>
         <el-form-item label="颜色">
           <el-color-picker v-model="form.color" :predefine="colorPresets" />
           <el-button link type="danger" size="small" @click="form.color = null">清除</el-button>
@@ -67,6 +66,9 @@
 </template>
 
 <script setup>
+/* 分类管理：树形表 + 新增/编辑弹窗。分类可设父级（最多两级，由后端校验）。
+ * 编辑时禁选自己作父级；行内改排序/可见性即调接口。
+ */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -132,7 +134,10 @@ async function handleSave() {
   saving.value = true
   try {
     if (form.value.id) {
-      await adminUpdateCategory(form.value.id, buildPayload())
+      // 排序只在行内即改即存，编辑弹窗不回写，避免覆盖最新的行内修改
+      const partial = buildPayload()
+      delete partial.sort_order
+      await adminUpdateCategory(form.value.id, partial)
     } else {
       await adminCreateCategory(buildPayload())
     }
@@ -155,7 +160,11 @@ async function updateVisible(row) {
 }
 
 async function updateSort(row) {
-  await adminUpdateCategory(row.id, { sort_order: row.sort_order })
+  try {
+    await adminUpdateCategory(row.id, { sort_order: row.sort_order })
+  } catch {
+    load()
+  }
 }
 
 async function handleDelete(row) {
@@ -177,10 +186,6 @@ onMounted(load)
 </script>
 
 <style scoped>
-.add-btn {
-  margin-bottom: 16px;
-}
-
 .tree-name {
   font-weight: 600;
 }

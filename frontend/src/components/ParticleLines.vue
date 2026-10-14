@@ -3,6 +3,13 @@
 </template>
 
 <script setup>
+/* 线条背景（site_background=line 时由 FrontLayout 挂载）：
+ * canvas 粒子连线动画，颜色跟随强调色、暗色下自动提亮。
+ * 三个坑位：
+ * - canvas 是「替换元素」，CSS 里必须显式给 100vw/100vh（见 style），否则 abspos 不会拉伸它；
+ * - 坐标用 canvas.clientWidth/clientHeight 而非 window.innerWidth——后者含滚动条会错位；
+ * - prefers-reduced-motion 用户只画一帧不启动 rAF，且切后台隐藏时 stop() 停 rAF。
+ */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useConfigStore } from '@/stores/config'
 import { useThemeStore } from '@/stores/theme'
@@ -102,8 +109,8 @@ function drawFrame() {
       const dy = a.y - b.y
       const d = Math.hypot(dx, dy)
       if (d >= LINK_DIST) continue
-      ctx.strokeStyle = `rgba(${rgb}, ${((1 - d / LINK_DIST) * 0.35).toFixed(3)})`
-      ctx.lineWidth = 1
+      ctx.strokeStyle = `rgba(${rgb}, ${((1 - d / LINK_DIST) * 0.5).toFixed(3)})`
+      ctx.lineWidth = 1.4
       ctx.beginPath()
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
@@ -111,15 +118,15 @@ function drawFrame() {
     }
     const pd = Math.hypot(pointer.x - a.x, pointer.y - a.y)
     if (pd < POINTER_DIST) {
-      ctx.strokeStyle = `rgba(${rgb}, ${((1 - pd / POINTER_DIST) * 0.65).toFixed(3)})`
+      ctx.strokeStyle = `rgba(${rgb}, ${((1 - pd / POINTER_DIST) * 0.85).toFixed(3)})`
       ctx.beginPath()
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(pointer.x, pointer.y)
       ctx.stroke()
     }
-    ctx.fillStyle = `rgba(${rgb}, 0.5)`
+    ctx.fillStyle = `rgba(${rgb}, 0.7)`
     ctx.beginPath()
-    ctx.arc(a.x, a.y, 1.4, 0, Math.PI * 2)
+    ctx.arc(a.x, a.y, 1.9, 0, Math.PI * 2)
     ctx.fill()
   }
 }

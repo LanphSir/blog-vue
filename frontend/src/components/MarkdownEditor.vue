@@ -40,6 +40,12 @@
 </template>
 
 <script setup>
+/* Markdown 编辑器：包装 md-editor-v3 的 MdEditor，并加上「从图库插入 / 导入 .md」两个辅助能力。
+ * 关键点：
+ * - MdEditor 经 useMdEditor 懒加载（动态 import），不进主包；
+ * - 图片上传走 handleUploadImg → uploadImage 进媒体库，返回的 URL 回填到光标处；
+ * - insertFromLibrary 优先用编辑器实例的 insert() 在光标处插入，否则退化为正文末尾追加。
+ */
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture, Upload } from '@element-plus/icons-vue'

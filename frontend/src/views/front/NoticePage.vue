@@ -21,6 +21,9 @@
 </template>
 
 <script setup>
+/* 单页公告页：按公告 id 拉详情（列表接口不含正文，详情才返回 content）。
+ * 已下线/不存在的公告接口返回 404，这里置空并显示空状态。
+ */
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getNotice } from '@/api/site'
