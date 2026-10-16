@@ -58,6 +58,11 @@
   margin-left: 14px;
 }
 
+/* 操作列禁止换行：真实中文字体下按钮比 headless 更宽，防止排成两行 */
+.admin-layout .el-table .ops-col .cell {
+  white-space: nowrap;
+}
+
 /* 提示说明条统一与下方内容留距（公告/菜单页顶部的 el-alert） */
 .admin-layout .el-alert.tip {
   margin-bottom: 14px;

@@ -2,14 +2,15 @@
 
 上传先写临时文件并流式限大小，再用 magic bytes 校验真实 MIME（_sniff_mime），
 杜绝伪装扩展名；最终落盘为 ``{时间戳}_{sha256前8位}{扩展名}`` 并登记 media_assets。
-媒体库支持按目录分页/统计，删除默认带引用保护（force 可绕过），启动时会
+媒体库支持按目录分页/统计；删除为软删除（回收站，文件保留、引用不失效），
+彻底删除才物理删文件且默认带引用保护（force 可绕过）；启动时会
 sweep 导入库建立前遗留的旧文件（见 seed.py）。
 """
 
 import hashlib
 import logging
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
@@ -135,8 +136,12 @@ async def list_media(
     page: int = Query(1, ge=1),
     page_size: int = Query(24, ge=1, le=100),
     dir: str | None = Query(None, description="dir prefix, e.g. 2026-10-01 or root"),
+    deleted: bool = Query(False, description="true 只看回收站（已软删）文件"),
 ) -> ApiResponse[dict]:
-    conditions = []
+    # 软删除过滤是硬约束：列表、计数与选择器数据源都只能看到当前视图的资产
+    conditions = [
+        MediaAsset.deleted_at.is_(None) if not deleted else MediaAsset.deleted_at.isnot(None)
+    ]
     if dir == "root":
         conditions.append(MediaAsset.rel_path.notlike("%/%"))
     elif dir:
@@ -160,7 +165,8 @@ async def list_media(
 
 @router.get("/admin/media/folders", summary="媒体库目录统计（按存储目录聚合）")
 async def list_media_folders(_: CurrentUser, db: DbDep) -> ApiResponse[list[dict]]:
-    result = await db.execute(select(MediaAsset.rel_path))
+    # 目录计数只统计未删除文件，回收站内容不计入目录树徽标
+    result = await db.execute(select(MediaAsset.rel_path).where(MediaAsset.deleted_at.is_(None)))
     counts: dict[str, int] = {}
     for (rel,) in result.all():
         parent = str(PurePosixPath(rel).parent)
@@ -200,17 +206,53 @@ async def _media_references(db: AsyncSession, asset: MediaAsset) -> list[str]:
     return refs
 
 
-@router.delete("/admin/media/{media_id}", summary="删除媒体文件（默认带引用保护）")
+@router.delete("/admin/media/{media_id}", summary="删除媒体文件（软删除，移入回收站）")
 async def delete_media(
+    media_id: int,
+    _: CurrentUser,
+    db: DbDep,
+) -> ApiResponse[None]:
+    """软删除：仅打标记，文件保留在磁盘，前台已引用的图片继续可访问。"""
+    asset = await db.get(MediaAsset, media_id)
+    if asset is None or asset.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在或已在回收站")
+    asset.deleted_at = datetime.now(UTC).replace(tzinfo=None)
+    await db.commit()
+    return ok(None)
+
+
+@router.post("/admin/media/{media_id}/restore", summary="从回收站恢复媒体文件")
+async def restore_media(
+    media_id: int,
+    _: CurrentUser,
+    db: DbDep,
+) -> ApiResponse[MediaAssetOut]:
+    asset = await db.get(MediaAsset, media_id)
+    if asset is None or asset.deleted_at is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在或未在回收站")
+    if not (settings.upload_path / asset.rel_path).exists():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="磁盘文件已丢失，无法恢复，请彻底删除该记录",
+        )
+    asset.deleted_at = None
+    await db.commit()
+    return ok(MediaAssetOut.model_validate(asset))
+
+
+@router.delete(
+    "/admin/media/{media_id}/permanent", summary="彻底删除媒体文件（物理删除，默认带引用保护）"
+)
+async def permanent_delete_media(
     media_id: int,
     _: CurrentUser,
     db: DbDep,
     force: bool = Query(False),
 ) -> ApiResponse[None]:
+    """物理删除文件与记录：被引用时返回 409，force=true 才放行。"""
     asset = await db.get(MediaAsset, media_id)
     if asset is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
-
     if not force:
         refs = await _media_references(db, asset)
         if refs:
@@ -218,9 +260,7 @@ async def delete_media(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"文件仍被引用：{'、'.join(refs)}。确认后可强制删除",
             )
-
-    file_path = settings.upload_path / asset.rel_path
-    file_path.unlink(missing_ok=True)
+    (settings.upload_path / asset.rel_path).unlink(missing_ok=True)
     await db.delete(asset)
     await db.commit()
     return ok(None)

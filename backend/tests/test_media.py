@@ -80,7 +80,43 @@ def test_folder_tree_and_dir_filter(client):
     assert other["total"] == 0
 
 
-def test_delete_with_reference_protection(client):
+def test_soft_delete_moves_to_recycle_bin(client):
+    """普通删除=软删：列表隐藏、回收站可见、磁盘文件与前台引用不受影响。"""
+    headers = _login(client)
+    url = _upload(client, headers).json()["data"]
+    media_id = next(
+        i["id"] for i in client.get("/api/v1/admin/media", headers=headers).json()["data"]["items"]
+    )
+
+    assert client.delete(f"/api/v1/admin/media/{media_id}", headers=headers).status_code == 200
+
+    listed = client.get("/api/v1/admin/media", headers=headers).json()["data"]
+    assert media_id not in [i["id"] for i in listed["items"]]
+    assert listed["total"] == 0
+
+    trash = client.get("/api/v1/admin/media?deleted=true", headers=headers).json()["data"]
+    assert trash["total"] == 1 and trash["items"][0]["id"] == media_id
+    assert trash["items"][0]["deleted_at"] is not None
+
+    from app.core.config import settings
+
+    rel = url.removeprefix("/uploads/")
+    assert (settings.upload_path / rel).exists()  # 软删不碰文件，引用不失效
+
+    # 目录徽标不计回收站内容
+    folders = client.get("/api/v1/admin/media/folders", headers=headers).json()["data"]
+    assert sum(f["count"] for f in folders) == 0
+
+    # 重复删除/恢复回列表
+    assert client.delete(f"/api/v1/admin/media/{media_id}", headers=headers).status_code == 404
+    restored = client.post(f"/api/v1/admin/media/{media_id}/restore", headers=headers)
+    assert restored.status_code == 200 and restored.json()["data"]["deleted_at"] is None
+    again = client.post(f"/api/v1/admin/media/{media_id}/restore", headers=headers)
+    assert again.status_code == 404
+
+
+def test_permanent_delete_reference_protection(client):
+    """彻底删除才校验引用并物理删文件；force 可绕过。"""
     headers = _login(client)
     url = _upload(client, headers).json()["data"]
     media_id = next(
@@ -94,45 +130,38 @@ def test_delete_with_reference_protection(client):
     )
     fid = friend.json()["data"]["id"]
 
-    blocked = client.delete(f"/api/v1/admin/media/{media_id}", headers=headers)
+    # 软删不拦引用
+    assert client.delete(f"/api/v1/admin/media/{media_id}", headers=headers).status_code == 200
+
+    blocked = client.delete(f"/api/v1/admin/media/{media_id}/permanent", headers=headers)
     assert blocked.status_code == 409
     assert "友链" in blocked.json()["message"]
 
-    forced = client.delete(f"/api/v1/admin/media/{media_id}?force=true", headers=headers)
+    forced = client.delete(f"/api/v1/admin/media/{media_id}/permanent?force=true", headers=headers)
     assert forced.status_code == 200
 
     from app.core.config import settings
 
     rel = url.removeprefix("/uploads/")
     assert not (settings.upload_path / rel).exists()
+    trash = client.get("/api/v1/admin/media?deleted=true", headers=headers).json()["data"]
+    assert trash["total"] == 0
     client.delete(f"/api/v1/admin/friends/{fid}", headers=headers)
 
 
-async def test_sweep_registers_legacy_files(db_session, tmp_path, monkeypatch):
+def test_restore_requires_file_on_disk(client):
+    """磁盘文件丢失时恢复报 409，提示彻底删除记录。"""
+    headers = _login(client)
+    url = _upload(client, headers).json()["data"]
+    media_id = next(
+        i["id"] for i in client.get("/api/v1/admin/media", headers=headers).json()["data"]["items"]
+    )
     from app.core.config import settings
-    from app.seed import sweep_existing_uploads
 
-    monkeypatch.setattr(settings, "upload_dir", str(tmp_path / "sweep-root"))
-    root = settings.upload_path
-    root.mkdir(parents=True, exist_ok=True)
-    (root / "legacy-a.png").write_bytes(PNG_1PX)
-    sub = root / "2025" / "01"
-    sub.mkdir(parents=True, exist_ok=True)
-    (sub / "legacy-b.png").write_bytes(PNG_1PX)
-    (root / "notes.txt").write_text("skip me")
+    rel = url.removeprefix("/uploads/")
+    client.delete(f"/api/v1/admin/media/{media_id}", headers=headers)
+    (settings.upload_path / rel).unlink()
 
-    async with db_session() as db:
-        await sweep_existing_uploads(db)
-        await sweep_existing_uploads(db)  # idempotent
-
-    from sqlalchemy import func, select
-
-    from app.models.site import MediaAsset
-
-    async with db_session() as db:
-        rows = (
-            (await db.execute(select(MediaAsset).order_by(MediaAsset.stored_name))).scalars().all()
-        )
-        assert [r.stored_name for r in rows] == ["legacy-a.png", "legacy-b.png"]
-        assert all(r.url.startswith("/uploads/") for r in rows)
-        assert (await db.execute(select(func.count(MediaAsset.id)))).scalar_one() == 2
+    resp = client.post(f"/api/v1/admin/media/{media_id}/restore", headers=headers)
+    assert resp.status_code == 409
+    assert "丢失" in resp.json()["message"]

@@ -99,3 +99,5 @@ class MediaAsset(Base):
     mime: Mapped[str | None] = mapped_column(String(100), default=None)
     size: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    # 软删除标记：非空表示已移入回收站（文件保留在磁盘，前台引用不失效）
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None, index=True)
