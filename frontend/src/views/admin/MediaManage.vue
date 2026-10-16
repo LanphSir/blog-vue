@@ -16,10 +16,15 @@
       <div class="mm-main">
     <div class="toolbar">
       <div class="toolbar-left">
-        <el-upload :show-file-list="false" :auto-upload="false" accept="image/*" :on-change="handleUpload">
+        <el-radio-group v-model="recycleMode" @change="reload">
+          <el-radio-button :value="false">媒体库</el-radio-button>
+          <el-radio-button :value="true">回收站</el-radio-button>
+        </el-radio-group>
+        <el-upload v-if="!recycleMode" :show-file-list="false" :auto-upload="false" accept="image/*" :on-change="handleUpload">
           <el-button type="primary" :loading="uploading">上传图片</el-button>
         </el-upload>
-        <span class="tip">文件按 年/月 归档，文件名自动加时间戳与内容哈希；站点名称等配置图片请使用 站点配置 页。</span>
+        <span v-if="!recycleMode" class="tip">文件按 年/月 归档，文件名自动加时间戳与内容哈希；站点名称等配置图片请使用 站点配置 页。</span>
+        <span v-else class="tip">删除的图片保留在此，可恢复；彻底删除才会移除磁盘文件，被引用时需强制確認。</span>
       </div>
       <el-input
         v-model="keyword"
@@ -33,7 +38,18 @@
       </el-input>
     </div>
 
-    <el-table :data="filtered" stripe v-loading="loading" row-key="id">
+    <BatchBar :count="selected.length" :busy="batchBusy" @clear="clearSelection">
+      <template v-if="!recycleMode">
+        <el-button size="small" type="danger" plain :disabled="batchBusy" @click="batchTrash">移入回收站</el-button>
+      </template>
+      <template v-else>
+        <el-button size="small" type="primary" plain :disabled="batchBusy" @click="batchRestoreMedia">批量恢复</el-button>
+        <el-button size="small" type="danger" plain :disabled="batchBusy" @click="batchPermanentMedia">彻底删除</el-button>
+      </template>
+    </BatchBar>
+
+    <el-table ref="tableRef" :data="filtered" stripe v-loading="loading" row-key="id" @selection-change="onSelectionChange">
+      <el-table-column type="selection" width="46" />
       <el-table-column label="预览" width="110">
         <template #default="{ row }">
           <el-image :src="row.url" style="width: 84px; height: 52px; border-radius: 4px" fit="cover" :preview-src-list="[row.url]" preview-teleported lazy>
@@ -49,13 +65,19 @@
       <el-table-column label="大小" width="90">
         <template #default="{ row }">{{ fmtSize(row.size) }}</template>
       </el-table-column>
-      <el-table-column label="上传时间" width="150">
-        <template #default="{ row }">{{ fmtDate(row.created_at) }}</template>
+      <el-table-column :label="recycleMode ? '删除时间' : '上传时间'" width="150">
+        <template #default="{ row }">{{ fmtDate(recycleMode ? row.deleted_at : row.created_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column label="操作" width="190" align="center" class-name="ops-col" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="copyUrl(row)">复制链接</el-button>
-          <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          <template v-if="recycleMode">
+            <el-button link type="primary" @click="handleRestore(row)">恢复</el-button>
+            <el-button link type="danger" @click="handlePermanent(row)">彻底删除</el-button>
+          </template>
+          <template v-else>
+            <el-button link type="primary" @click="copyUrl(row)">复制链接</el-button>
+            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          </template>
         </template>
       </el-table-column>
     </el-table>
@@ -74,16 +96,26 @@
 </template>
 
 <script setup>
-/* 媒体库：左侧目录树 + 右侧图片列表。
- * 删除带引用保护：后端 409 表示被引用，需二次确认走 force=true 强制删除；
+/* 媒体库：左侧目录树 + 右侧图片列表，附「回收站」视图（与文章管理同款交互）。
+ * 删除=软删进回收站（文件保留、前台引用不失效）；「彻底删除」才物理删文件，
+ * 后端 409 表示被引用，需二次确认走 force=true 强制删除；
  * 删除最后一页最后一条时回退一页，避免空页。上传用 el-upload 仅在此页做
  * 「图片入库」主入口，其余页面选图统一走 MediaPicker。
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import { adminDeleteMedia, adminListMedia, adminMediaFolders, uploadImage } from '@/api/upload'
+import {
+  adminDeleteMedia,
+  adminListMedia,
+  adminMediaFolders,
+  adminPermanentDeleteMedia,
+  adminRestoreMedia,
+  uploadImage,
+} from '@/api/upload'
 import { buildFolderTree } from '@/utils/mediaTree'
+import BatchBar from '@/components/admin/BatchBar.vue'
+import { runBatch, reportBatch } from '@/utils/batch'
 
 const items = ref([])
 const total = ref(0)
@@ -94,6 +126,66 @@ const uploading = ref(false)
 const keyword = ref('')
 const folders = ref([])
 const currentDir = ref('')
+const recycleMode = ref(false)
+const tableRef = ref(null)
+const selected = ref([])
+const batchBusy = ref(false)
+
+function onSelectionChange(rows) {
+  selected.value = rows
+}
+
+function clearSelection() {
+  tableRef.value?.clearSelection()
+  selected.value = []
+}
+
+async function batchTrash() {
+  const rows = [...selected.value]
+  try {
+    await ElMessageBox.confirm(`确认将选中的 ${rows.length} 张图片移入回收站？前台已引用的图片不受影响。`, '移入回收站', { type: 'warning' })
+  } catch {
+    return
+  }
+  batchBusy.value = true
+  try {
+    reportBatch(await runBatch(rows.map((r) => r.id), (id) => adminDeleteMedia(id)), '已移入回收站')
+    clearSelection()
+    await Promise.all([load(page.value), loadFolders()])
+  } finally {
+    batchBusy.value = false
+  }
+}
+
+async function batchRestoreMedia() {
+  const rows = [...selected.value]
+  batchBusy.value = true
+  try {
+    reportBatch(await runBatch(rows.map((r) => r.id), (id) => adminRestoreMedia(id)), '已恢复')
+    clearSelection()
+    await Promise.all([load(page.value), loadFolders()])
+  } finally {
+    batchBusy.value = false
+  }
+}
+
+async function batchPermanentMedia() {
+  const rows = [...selected.value]
+  try {
+    await ElMessageBox.confirm(`确认彻底删除 ${rows.length} 张图片？磁盘文件将被移除，不可恢复！若仍被引用将跳过并汇总。`, '危险操作', { type: 'error', confirmButtonText: '彻底删除', confirmButtonClass: 'el-button--danger' })
+  } catch {
+    return
+  }
+  batchBusy.value = true
+  try {
+    reportBatch(await runBatch(rows.map((r) => r.id), (id) => adminPermanentDeleteMedia(id)), '已彻底删除')
+    clearSelection()
+    await Promise.all([load(items.value.length === rows.length && page.value > 1 ? page.value - 1 : page.value), loadFolders()])
+  } finally {
+    batchBusy.value = false
+  }
+}
+
 
 const treeData = computed(() => buildFolderTree(folders.value))
 const currentTreeKey = computed(() => currentDir.value)
@@ -127,7 +219,7 @@ async function load(toPage = 1) {
   page.value = toPage
   loading.value = true
   try {
-    const params = { page: toPage, page_size: pageSize }
+    const params = { page: toPage, page_size: pageSize, deleted: recycleMode.value }
     if (currentDir.value) params.dir = currentDir.value
     const res = await adminListMedia(params)
     items.value = res.data.items
@@ -168,16 +260,45 @@ async function copyUrl(row) {
 async function handleDelete(row) {
   try {
     await ElMessageBox.confirm(
-      `确认后删除「${row.stored_name}」？若文件仍被文章/轮播/页脚引用，删除后相关图片将失效。`,
-      '删除图片',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+      `将「${row.stored_name}」移入回收站？前台已引用的图片不受影响，可随时恢复。`,
+      '移入回收站',
+      { type: 'warning', confirmButtonText: '移入回收站', cancelButtonText: '取消' },
     )
   } catch {
     return
   }
   try {
     await adminDeleteMedia(row.id)
-    ElMessage.success('已删除')
+    ElMessage.success('已移入回收站')
+    await Promise.all([load(items.value.length === 1 && page.value > 1 ? page.value - 1 : page.value), loadFolders()])
+  } catch {
+    /* 拦截器已提示 */
+  }
+}
+
+async function handleRestore(row) {
+  try {
+    await adminRestoreMedia(row.id)
+    ElMessage.success('已恢复')
+    await Promise.all([load(page.value), loadFolders()])
+  } catch {
+    /* 磁盘文件丢失等错误由拦截器提示 */
+  }
+}
+
+async function handlePermanent(row) {
+  try {
+    await ElMessageBox.confirm(
+      `彻底删除「${row.stored_name}」？磁盘文件将被移除，该操作不可恢复！`,
+      '危险操作',
+      { type: 'error', confirmButtonText: '彻底删除', confirmButtonClass: 'el-button--danger' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await adminPermanentDeleteMedia(row.id)
+    ElMessage.success('已彻底删除')
     await Promise.all([load(items.value.length === 1 && page.value > 1 ? page.value - 1 : page.value), loadFolders()])
   } catch (err) {
     const detail = err?.response?.data?.message
@@ -191,9 +312,9 @@ async function handleDelete(row) {
       } catch {
         return
       }
-      await adminDeleteMedia(row.id, true)
+      await adminPermanentDeleteMedia(row.id, true)
       ElMessage.success('已强制删除')
-      await Promise.all([load(page.value), loadFolders()])
+      await Promise.all([load(items.value.length === 1 && page.value > 1 ? page.value - 1 : page.value), loadFolders()])
     } else if (detail) {
       ElMessage.warning(detail)
     }

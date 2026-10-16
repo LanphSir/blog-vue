@@ -44,6 +44,8 @@
 
 ## 管理接口（需 JWT）
 
+> 列表批量操作（0.13.0）不新增 bulk 端点：前端逐条循环调用下表中的单条接口（PUT/DELETE 等），语义与单条完全一致。
+
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/admin/posts` | 文章管理列表（含草稿，支持 status/keyword 筛选） |
@@ -64,9 +66,11 @@
 | PUT | `/admin/banners/{id}` | 更新轮播图 |
 | DELETE | `/admin/banners/{id}` | 删除轮播图 |
 | POST | `/admin/upload` | 上传图片（multipart `file`；jpg/png/gif/webp/svg，≤5MB；magic-bytes 文件头校验，伪装扩展名 400）。按 `uploads/年/月/日/` 归档，文件名=`时间戳_哈希前8位`，自动登记媒体库，返回 URL |
-| GET | `/admin/media` | 媒体库分页列表（`page`/`page_size`，返回 items/total/page/page_size；`dir=年/月[/日]` 前缀过滤，`dir=root` 筛根目录旧文件） |
+| GET | `/admin/media` | 媒体库分页列表（`page`/`page_size`，返回 items/total/page/page_size；`dir=年/月[/日]` 前缀过滤，`dir=root` 筛根目录旧文件；`deleted=true` 只看回收站，默认排除已删） |
 | GET | `/admin/media/folders` | 各存储目录文件数聚合（`[{dir, count}]`，dir=`年/月/日` 或 `root`），供前端目录树 |
-| DELETE | `/admin/media/{id}` | 删除图片文件与记录；默认引用保护（被文章/轮播/友链/配置引用返回 409），`?force=true` 强删 |
+| DELETE | `/admin/media/{id}` | 删除图片=软删移入回收站（文件保留、引用不失效） |
+| POST | `/admin/media/{id}/restore` | 从回收站恢复（磁盘文件已丢失返回 409） |
+| DELETE | `/admin/media/{id}/permanent` | 彻底删除：物理删文件与记录；默认引用保护（被引用 409），`?force=true` 强删 |
 | GET | `/admin/menus` | 菜单管理列表（平铺，含隐藏） |
 | POST | `/admin/menus` | 创建菜单（校验：两级上限；link 路径须 `/` 开头；外链须 http(s)；category 必须顶级） |
 | PUT | `/admin/menus/{id}` | 更新菜单（删除父项会连带删除子项） |

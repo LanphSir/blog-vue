@@ -4,7 +4,13 @@
       <el-button type="primary" @click="openDialog()">新增分类</el-button>
     </div>
 
-    <el-table :data="tree" stripe v-loading="loading" row-key="id" default-expand-all :tree-props="{ children: 'children' }">
+    <BatchBar :count="selected.length" :busy="batchBusy" @clear="clearSelection">
+      <el-button size="small" type="primary" plain :disabled="batchBusy" @click="batchToggle(true)">批量显示</el-button>
+      <el-button size="small" type="info" plain :disabled="batchBusy" @click="batchToggle(false)">批量隐藏</el-button>
+    </BatchBar>
+
+    <el-table ref="tableRef" :data="tree" stripe v-loading="loading" row-key="id" default-expand-all :tree-props="{ children: 'children' }" @selection-change="onSelectionChange">
+      <el-table-column type="selection" width="46" />
       <el-table-column prop="name" label="名称" min-width="180">
         <template #default="{ row }">
           <span class="tree-name" :style="row.color ? { color: row.color } : {}">{{ row.name }}</span>
@@ -71,6 +77,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import BatchBar from '@/components/admin/BatchBar.vue'
+import { runBatch, reportBatch } from '@/utils/batch'
 import {
   adminCreateCategory,
   adminDeleteCategory,
@@ -87,6 +95,36 @@ const dialogVisible = ref(false)
 const form = ref({ id: null, name: '', slug: '', color: null, parent_id: null, sort_order: 0, visible: true })
 
 const rootCategories = computed(() => tree.value)
+
+const selected = ref([])
+const batchBusy = ref(false)
+const tableRef = ref(null)
+
+function onSelectionChange(rows) {
+  selected.value = rows
+}
+
+function clearSelection() {
+  tableRef.value?.clearSelection()
+  selected.value = []
+}
+
+async function batchToggle(value) {
+  const rows = [...selected.value]
+  if (!rows.length) return
+  batchBusy.value = true
+  try {
+    const result = await runBatch(
+      rows.map((r) => r.id),
+      (id) => adminUpdateCategory(id, { visible: value }),
+    )
+    reportBatch(result, value ? '批量显示' : '批量隐藏')
+    clearSelection()
+    await load()
+  } finally {
+    batchBusy.value = false
+  }
+}
 
 async function load() {
   loading.value = true

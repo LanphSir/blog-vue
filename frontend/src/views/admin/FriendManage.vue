@@ -4,7 +4,13 @@
       <el-button type="primary" @click="openCreate">新增友链</el-button>
     </div>
 
-    <el-table :data="links" stripe v-loading="loading">
+    <BatchBar :count="selected.length" :busy="batchBusy" @clear="clearSelection">
+      <el-button size="small" type="primary" plain :disabled="batchBusy" @click="batchToggle(true)">批量显示</el-button>
+      <el-button size="small" type="info" plain :disabled="batchBusy" @click="batchToggle(false)">批量隐藏</el-button>
+    </BatchBar>
+
+    <el-table ref="tableRef" :data="links" stripe v-loading="loading" @selection-change="onSelectionChange">
+      <el-table-column type="selection" width="46" />
       <el-table-column label="图标" width="72" align="center">
         <template #default="{ row }">
           <el-avatar v-if="row.icon" :src="row.icon" :size="32" shape="square" />
@@ -64,6 +70,8 @@
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import BatchBar from '@/components/admin/BatchBar.vue'
+import { runBatch, reportBatch } from '@/utils/batch'
 import {
   adminCreateFriend,
   adminDeleteFriend,
@@ -78,6 +86,36 @@ const saving = ref(false)
 const dialogVisible = ref(false)
 const emptyForm = () => ({ id: null, name: '', url: '', description: '', icon: null, visible: true, sort_order: 0 })
 const form = ref(emptyForm())
+
+const selected = ref([])
+const batchBusy = ref(false)
+const tableRef = ref(null)
+
+function onSelectionChange(rows) {
+  selected.value = rows
+}
+
+function clearSelection() {
+  tableRef.value?.clearSelection()
+  selected.value = []
+}
+
+async function batchToggle(value) {
+  const rows = [...selected.value]
+  if (!rows.length) return
+  batchBusy.value = true
+  try {
+    const result = await runBatch(
+      rows.map((r) => r.id),
+      (id) => adminUpdateFriend(id, { visible: value }),
+    )
+    reportBatch(result, value ? '批量显示' : '批量隐藏')
+    clearSelection()
+    await load()
+  } finally {
+    batchBusy.value = false
+  }
+}
 
 async function load() {
   loading.value = true

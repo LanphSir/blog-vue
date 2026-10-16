@@ -4,7 +4,13 @@
       <el-button type="primary" @click="openDialog()">新增标签</el-button>
     </div>
 
-    <el-table :data="tags" stripe v-loading="loading">
+    <BatchBar :count="selected.length" :busy="batchBusy" @clear="clearSelection">
+      <el-button size="small" type="primary" plain :disabled="batchBusy" @click="batchToggle(true)">批量显示</el-button>
+      <el-button size="small" type="info" plain :disabled="batchBusy" @click="batchToggle(false)">批量隐藏</el-button>
+    </BatchBar>
+
+    <el-table ref="tableRef" :data="tags" stripe v-loading="loading" @selection-change="onSelectionChange">
+      <el-table-column type="selection" width="46" />
       <el-table-column prop="name" label="名称" min-width="140">
         <template #default="{ row }">
           <span :style="row.color ? { color: row.color } : {}">{{ row.name }}</span>
@@ -65,6 +71,8 @@
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import BatchBar from '@/components/admin/BatchBar.vue'
+import { runBatch, reportBatch } from '@/utils/batch'
 import { adminCreateTag, adminDeleteTag, adminUpdateTag, getTags } from '@/api/categories'
 
 const colorPresets = ['#2563EB', '#16A34A', '#DB2777', '#EA580C', '#7C3AED', '#0EA5E9', '#64748B', '#B45309']
@@ -74,6 +82,36 @@ const loading = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
 const form = ref({ id: null, name: '', slug: '', color: null, visible: true, sort_order: 0 })
+
+const selected = ref([])
+const batchBusy = ref(false)
+const tableRef = ref(null)
+
+function onSelectionChange(rows) {
+  selected.value = rows
+}
+
+function clearSelection() {
+  tableRef.value?.clearSelection()
+  selected.value = []
+}
+
+async function batchToggle(value) {
+  const rows = [...selected.value]
+  if (!rows.length) return
+  batchBusy.value = true
+  try {
+    const result = await runBatch(
+      rows.map((r) => r.id),
+      (id) => adminUpdateTag(id, { visible: value }),
+    )
+    reportBatch(result, value ? '批量显示' : '批量隐藏')
+    clearSelection()
+    await load()
+  } finally {
+    batchBusy.value = false
+  }
+}
 
 async function load() {
   loading.value = true

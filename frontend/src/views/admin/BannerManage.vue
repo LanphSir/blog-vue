@@ -4,7 +4,13 @@
       <el-button type="primary" @click="openDialog()">新增轮播图</el-button>
     </div>
 
-    <el-table :data="banners" stripe v-loading="loading">
+    <BatchBar :count="selected.length" :busy="batchBusy" @clear="clearSelection">
+      <el-button size="small" type="primary" plain :disabled="batchBusy" @click="batchToggle(true)">批量启用</el-button>
+      <el-button size="small" type="info" plain :disabled="batchBusy" @click="batchToggle(false)">批量停用</el-button>
+    </BatchBar>
+
+    <el-table ref="tableRef" :data="banners" stripe v-loading="loading" @selection-change="onSelectionChange">
+      <el-table-column type="selection" width="46" />
       <el-table-column prop="title" label="标题" min-width="160" />
       <el-table-column prop="subtitle" label="副标题" min-width="200" show-overflow-tooltip />
       <el-table-column label="图片" width="120">
@@ -70,6 +76,8 @@
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import BatchBar from '@/components/admin/BatchBar.vue'
+import { runBatch, reportBatch } from '@/utils/batch'
 import {
   adminCreateBanner,
   adminDeleteBanner,
@@ -83,6 +91,36 @@ const loading = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
 const form = ref({ id: null, title: '', subtitle: '', image: null, link: null, sort_order: 0, enabled: true })
+
+const selected = ref([])
+const batchBusy = ref(false)
+const tableRef = ref(null)
+
+function onSelectionChange(rows) {
+  selected.value = rows
+}
+
+function clearSelection() {
+  tableRef.value?.clearSelection()
+  selected.value = []
+}
+
+async function batchToggle(value) {
+  const rows = [...selected.value]
+  if (!rows.length) return
+  batchBusy.value = true
+  try {
+    const result = await runBatch(
+      rows.map((r) => r.id),
+      (id) => adminUpdateBanner(id, { enabled: value }),
+    )
+    reportBatch(result, value ? '批量启用' : '批量停用')
+    clearSelection()
+    await load()
+  } finally {
+    batchBusy.value = false
+  }
+}
 
 async function load() {
   loading.value = true
