@@ -2,6 +2,16 @@
 
 本文件记录项目各阶段的功能开发与变更，按时间倒序排列。
 
+## [0.14.0] - 2026-10-16
+
+### 社交徽章自定义 / 页面加载动画 / 文章页体验
+
+- **社交链接自定义图标与颜色**：`social_links` 新增 `icon_url`/`color`（迁移 `c9a1d2e3b4f5`）；简介卡徽章优先显示自定义图片，自定义颜色覆盖平台品牌色（留空回退预设）；定制控件收进每行的「定制」展开子行（虚线框：MediaPicker + 颜色选择器 + 恢复默认），主行保持精简；`color` 非 #hex 后端 422
+- **页面加载动画（配置键 `site_loading`）**：外观 Tab 单选 旋转环/顶部扫光/进度条/关闭，覆盖「切页后数据未回」的空白等待期——axios 拦截器经 `utils/loadingBus` 计数请求活动，`PageLoading.vue`（`App.vue` 全局挂载）订阅之：请求结束再停留 400ms 淡出防闪烁，spinner 模式带半透明遮罩盖住空白内容区；枚举白名单校验，非法值回退 spinner
+- **文章详情 meta 栏**：点号分隔长文本改为「图标+值」胶囊（日历=发布日期、眼睛=阅读量、时钟=预计时长），窄屏隐藏文字留图标
+- **正文风格切换**：页面右下角悬浮两枚悬停下拉胶囊（fixed 竖排、菜单向上弹出、避开回到顶部按钮、窄屏收起标签；localStorage 记忆）——「正文」切 md-editor 内置 previewTheme（默认/GitHub/VuePress/萌系/智蓝/青蓝，样式已随 preview.css 打包）；「代码」切 highlight.js 主题（Atom/GitHub 浅/Monokai/GitHub 暗，本地 `?url` 静态导入、单 link 换 href，离线可用不依赖 CDN）
+- 测试：后端 53 用例（site_loading 枚举、social icon/color 校验与公开回显）；`npm run build` 通过；playwright 实测主题切换（Monokai token 着色）、拖慢请求下动画覆盖空白期、子行控件、自定义徽章颜色
+
 ## [0.13.0] - 2026-10-16
 
 ### 列表批量操作

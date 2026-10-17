@@ -110,3 +110,43 @@ async def test_legacy_profile_links_migration_invalid_json(db_session):
         await db.commit()
         await _migrate_social_links(db)
         assert await site_crud.list_social_links(db) == []
+
+def test_social_icon_and_color(client):
+    """自定义图标与颜色：icon_url/color 可设可回显；非法颜色 422。"""
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
+    headers = {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
+
+    bad = client.post(
+        "/api/v1/admin/social-links",
+        headers=headers,
+        json={"platform": "custom", "label": "X", "url": "https://x.example.com", "color": "red"},
+    )
+    assert bad.status_code == 422
+
+    created = client.post(
+        "/api/v1/admin/social-links",
+        headers=headers,
+        json={
+            "platform": "custom",
+            "label": "博客圆",
+            "url": "https://b.example.com",
+            "icon_url": "/uploads/2026-10-16/t_h.png",
+            "color": "#12AB34",
+        },
+    )
+    assert created.status_code == 201
+    data = created.json()["data"]
+    assert data["icon_url"] == "/uploads/2026-10-16/t_h.png"
+    assert data["color"] == "#12AB34"
+
+    link_id = data["id"]
+    upd = client.put(
+        f"/api/v1/admin/social-links/{link_id}",
+        headers=headers,
+        json={"color": "#fff"},
+    )
+    assert upd.status_code == 200 and upd.json()["data"]["color"] == "#fff"
+
+    public = client.get("/api/v1/social-links").json()["data"]
+    row = next(i for i in public if i["id"] == link_id)
+    assert row["icon_url"] == "/uploads/2026-10-16/t_h.png"

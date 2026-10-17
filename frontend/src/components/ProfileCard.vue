@@ -17,7 +17,8 @@
         :style="badgeStyle(link)"
         :title="badgeTitle(link)"
       >
-        {{ badgeLetter(link) }}
+        <img v-if="link.icon_url" :src="link.icon_url" class="badge-icon" :alt="badgeTitle(link)" />
+        <template v-else>{{ badgeLetter(link) }}</template>
       </a>
     </div>
   </div>
@@ -42,6 +43,9 @@ const initial = computed(() => name.value.slice(0, 1).toUpperCase())
 
 function badgeStyle(link) {
   const meta = platformMeta(link.platform)
+  if (link.color) {
+    return { background: link.color, color: '#fff' }
+  }
   if (!meta) {
     return { background: 'var(--blog-border)', color: 'var(--blog-text-secondary)' }
   }
@@ -110,6 +114,13 @@ function badgeLetter(link) {
   justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.badge-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .link-badge {

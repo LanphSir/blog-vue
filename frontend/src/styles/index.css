@@ -10,6 +10,7 @@
   --blog-font-body:
     'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial,
     sans-serif;
+  --blog-z-index-header: 10001;
 }
 
 html.dark {
@@ -311,4 +312,10 @@ mark {
   color: inherit;
   padding: 0 3px;
   border-radius: 3px;
+}
+
+/* 文章页主题下拉（popper 挂在 body，scoped 到不了，这里全局定义） */
+.theme-popper .theme-active {
+  color: var(--blog-primary);
+  font-weight: 600;
 }

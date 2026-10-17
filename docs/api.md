@@ -57,6 +57,8 @@
 | PUT | `/admin/categories/{id}` | 更新分类 |
 | DELETE | `/admin/categories/{id}` | 删除分类 |
 | PUT | `/admin/site/config` | 批量更新站点配置，body 为 `[{key, value}]` |
+
+> 配置枚举：`site_background` ∈ none/grid/aurora/dots/topo/geek/line；`site_loading` ∈ none/spinner/progress/bar（页面加载动画，0.14.0）。
 | GET | `/admin/friends` | 友链管理列表（含隐藏项） |
 | POST | `/admin/friends` | 创建友链（name/url 必填，可选 description/icon/visible/sort_order） |
 | PUT | `/admin/friends/{id}` | 更新友链 |
@@ -76,7 +78,7 @@
 | PUT | `/admin/menus/{id}` | 更新菜单（删除父项会连带删除子项） |
 | DELETE | `/admin/menus/{id}` | 删除菜单（连带子项） |
 | GET | `/admin/social-links` | 社交链接管理列表（含隐藏） |
-| POST | `/admin/social-links` | 创建社交链接（url 须 http(s):// 或 mailto:） |
+| POST | `/admin/social-links` | 创建社交链接（url 须 http(s):// 或 mailto:；可选 icon_url 自定义图标、color 徽章色，非 #hex 422） |
 | PUT | `/admin/social-links/{id}` | 更新社交链接 |
 | DELETE | `/admin/social-links/{id}` | 删除社交链接 |
 | GET | `/admin/notices` | 公告管理列表（含停用与全文） |

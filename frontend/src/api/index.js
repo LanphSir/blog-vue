@@ -5,6 +5,7 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
+import { beginActivity, endActivity } from '@/utils/loadingBus'
 
 const service = axios.create({
   baseURL: '/api/v1',
@@ -12,6 +13,7 @@ const service = axios.create({
 })
 
 service.interceptors.request.use((config) => {
+  beginActivity()
   const token = localStorage.getItem('blog_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -21,6 +23,7 @@ service.interceptors.request.use((config) => {
 
 service.interceptors.response.use(
   (response) => {
+    endActivity()
     const ct = response.headers['content-type'] || ''
     if (!ct.includes('json')) {
       return response
@@ -37,6 +40,7 @@ service.interceptors.response.use(
     return res
   },
   (error) => {
+    endActivity()
     const status = error.response?.status
     if (status === 401) {
       localStorage.removeItem('blog_token')

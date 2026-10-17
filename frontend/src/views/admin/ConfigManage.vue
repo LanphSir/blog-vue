@@ -33,6 +33,15 @@
               </button>
             </div>
           </el-form-item>
+          <el-form-item label="加载动画">
+            <el-radio-group v-model="form.site_loading">
+              <el-radio-button value="spinner">旋转环</el-radio-button>
+              <el-radio-button value="progress">顶部扫光</el-radio-button>
+              <el-radio-button value="bar">进度条</el-radio-button>
+              <el-radio-button value="none">关闭</el-radio-button>
+            </el-radio-group>
+            <span class="accent-hint">切换页面时顶部的加载提示，前后台都生效；选「关闭」则无任何动画</span>
+          </el-form-item>
         </el-form>
       </el-tab-pane>
 
@@ -70,6 +79,11 @@
                     @input="markDirty(row)"
                   />
                   <el-input v-model="row.url" placeholder="https://… 或 mailto:…" class="social-url" @input="markDirty(row)" />
+                  <el-button
+                    link
+                    :type="hasSocialCustom(row) ? 'primary' : ''"
+                    @click="row._showCustom = !row._showCustom"
+                  >定制{{ hasSocialCustom(row) ? ' ✓' : '' }}</el-button>
                   <el-tooltip :content="row.visible ? '显示中' : '已隐藏'" placement="top">
                     <el-switch v-model="row.visible" @change="markDirty(row)" />
                   </el-tooltip>
@@ -82,6 +96,30 @@
                     @change="markDirty(row)"
                   />
                   <el-button link type="danger" @click="removeSocialRow(row)">删除</el-button>
+                  <el-collapse-transition>
+                    <div v-if="row._showCustom" class="social-custom">
+                      <div class="sc-field">
+                        <span class="sc-label">徽章图标</span>
+                        <MediaPicker
+                          :model-value="row.icon_url || ''"
+                          :preview-width="40"
+                          :preview-height="40"
+                          @update:model-value="(v) => { row.icon_url = v; markDirty(row) }"
+                        />
+                      </div>
+                      <div class="sc-field">
+                        <span class="sc-label">徽章颜色</span>
+                        <el-color-picker
+                          :model-value="row.color || null"
+                          @update:model-value="(v) => { row.color = v || ''; markDirty(row) }"
+                        />
+                      </div>
+                      <el-button v-if="hasSocialCustom(row)" link type="primary" size="small" class="sc-reset" @click="resetSocialCustom(row)">
+                        恢复默认
+                      </el-button>
+                      <p class="sc-hint">图标留空显示平台首字母、颜色留空用平台品牌色；方形小图效果最佳。</p>
+                    </div>
+                  </el-collapse-transition>
                 </div>
                 <p class="social-hint">修改后点击底部“保存配置”统一生效；关闭的链接不会出现在前台。</p>
               </div>
@@ -200,13 +238,30 @@ onMounted(async () => {
   for (const item of res.data) {
     form[item.key] = item.value
   }
+  if (!form.site_loading) form.site_loading = 'spinner'
   await reloadSocialRows()
 })
 
 async function reloadSocialRows() {
   const res = await adminGetSocialLinks()
-  socialRows.value = res.data.map((item) => ({ ...item, _dirty: false }))
+  socialRows.value = res.data.map((item) => ({
+    ...item,
+    icon_url: item.icon_url || '',
+    color: item.color || '',
+    _dirty: false,
+    _showCustom: false,
+  }))
   removedSocialRows.value = []
+}
+
+function hasSocialCustom(row) {
+  return !!(row.icon_url || row.color)
+}
+
+function resetSocialCustom(row) {
+  row.icon_url = ''
+  row.color = ''
+  markDirty(row)
 }
 
 function addSocialRow() {
@@ -217,7 +272,10 @@ function addSocialRow() {
     url: '',
     visible: true,
     sort_order: socialRows.value.length,
+    icon_url: '',
+    color: '',
     _dirty: true,
+    _showCustom: false,
   })
 }
 
@@ -238,6 +296,9 @@ function validateSocialRows() {
       return `「${url}」不是合法链接（需以 http(s):// 或 mailto: 开头）`
     }
     if (row.platform === 'custom' && !(row.label || '').trim()) return '自定义平台需要填写显示名'
+    if (row.color && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(row.color)) {
+      return `「${row.label || row.platform}」的徽章颜色需为 #RGB 或 #RRGGBB`
+    }
   }
   return null
 }
@@ -254,6 +315,8 @@ async function saveSocialRows() {
       url: (row.url || '').trim(),
       visible: row.visible,
       sort_order: row.sort_order || 0,
+      icon_url: (row.icon_url || '').trim() || null,
+      color: (row.color || '').trim() || null,
     }
     if (row.id) {
       await adminUpdateSocialLink(row.id, payload)
@@ -367,8 +430,52 @@ async function handleSave() {
 .social-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 10px;
+}
+
+/* 定制子行：占满整行，虚线框与主行区分。
+ * 字段一律“标签在上、控件在下”的纵排，底部对齐同一基线；
+ * 提示文字独立成行，避免 MediaPicker 的行内 tip 把控件顶偏。 */
+.social-custom {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  padding: 14px 16px 10px;
+  border: 1px dashed var(--blog-border);
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.05);
+}
+
+.social-custom .sc-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.social-custom .sc-label {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--blog-text-secondary);
+  white-space: nowrap;
+}
+
+.social-custom .sc-reset {
+  margin-left: auto;
+  /* 与两字段“控件行”垂直居中对齐：标签 12px + 间距 6px */
+  margin-top: 18px;
+}
+
+.social-custom .sc-hint {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--blog-text-secondary);
 }
 
 .social-url {

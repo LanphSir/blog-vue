@@ -299,7 +299,7 @@ onBeforeUnmount(() => {
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--blog-z-index-header);
   background: var(--blog-card);
   border-bottom: 1px solid var(--blog-border);
 }

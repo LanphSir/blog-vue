@@ -21,6 +21,12 @@ export const useConfigStore = defineStore('config', () => {
 
   const accentColor = () => configs.value.site_accent_color || '#2563eb'
 
+  // 加载动画枚举白名单外的值回退 spinner（与后端校验一致）
+  const loadingMode = () => {
+    const v = configs.value.site_loading
+    return ['none', 'spinner', 'progress', 'bar'].includes(v) ? v : 'spinner'
+  }
+
   const siteMenus = () => (menus.value.length ? menus.value : defaultMenus())
 
   const hasCategoryMenu = () => siteMenus().some((m) => m.type === 'category')
@@ -91,6 +97,7 @@ export const useConfigStore = defineStore('config', () => {
     notices,
     siteName,
     accentColor,
+    loadingMode,
     siteMenus,
     hasCategoryMenu,
     profileLinks,

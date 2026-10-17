@@ -69,6 +69,9 @@ class SocialLink(Base):
     url: Mapped[str] = mapped_column(String(500))
     visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    # 可选自定义：icon_url 有值时简介卡显示图片徽章；color 覆盖预设品牌色
+    icon_url: Mapped[str | None] = mapped_column(String(500), default=None)
+    color: Mapped[str | None] = mapped_column(String(20), default=None)
 
 
 class Notice(Base):

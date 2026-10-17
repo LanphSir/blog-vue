@@ -12,6 +12,9 @@ _HEX_COLOR = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 ALLOWED_BACKGROUNDS = {"none", "grid", "aurora", "dots", "topo", "geek", "line"}
 
+# 页面加载动画方案（0.14.0）：spinner 旋转环 / progress 顶部扫光 / bar 进度条 / none 关闭
+ALLOWED_LOADINGS = {"none", "spinner", "progress", "bar"}
+
 
 def _check_int_range(value: str, low: int, high: int, label: str) -> str | None:
     try:
@@ -33,4 +36,7 @@ def check_config_value(key: str, value: str) -> str | None:
     elif key == "site_background" and value:
         if value not in ALLOWED_BACKGROUNDS:
             return "背景方案必须是 none/grid/aurora/dots/topo/geek/line 之一"
+    elif key == "site_loading" and value:
+        if value not in ALLOWED_LOADINGS:
+            return "加载动画必须是 none/spinner/progress/bar 之一"
     return None

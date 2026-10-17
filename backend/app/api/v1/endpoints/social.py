@@ -4,6 +4,8 @@
 http(s):// 或 mailto: 前缀（_validate_url），防注入与误配。公开接口仅返回可见项。
 """
 
+import re
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import CurrentUser, DbDep
@@ -15,6 +17,16 @@ from app.schemas.site import SocialLinkCreate, SocialLinkOut, SocialLinkUpdate
 router = APIRouter()
 
 URL_SCHEMES = ("http://", "https://", "mailto:")
+_HEX_COLOR = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def _validate_color(color: str | None) -> None:
+    """自定义徽章颜色只接受 #RGB/#RRGGBB；空值（回退预设色）放行。"""
+    if color and not _HEX_COLOR.match(color):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="徽章颜色必须是 #RGB 或 #RRGGBB 格式",
+        )
 
 
 def _validate_url(url: str | None) -> None:
@@ -46,6 +58,7 @@ async def create_social_link(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="平台不能为空"
         )
     _validate_url(payload.url)
+    _validate_color(payload.color)
     link = SocialLink(**payload.model_dump())
     db.add(link)
     await db.commit()
@@ -63,6 +76,8 @@ async def update_social_link(
     changes = payload.model_dump(exclude_unset=True)
     if "url" in changes:
         _validate_url(changes["url"])
+    if "color" in changes:
+        _validate_color(changes["color"])
     if "platform" in changes and (changes["platform"] or "").strip() == "":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="平台不能为空"

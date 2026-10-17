@@ -81,3 +81,21 @@ def test_background_enum_validation(client):
     )
     assert good.status_code == 200
     assert _config_value(client, "site_background") == "line"
+
+
+def test_site_loading_enum(client):
+    """site_loading 只接受 none/spinner/progress/bar。"""
+    headers = _login(client)
+    bad = client.put(
+        "/api/v1/admin/site/config",
+        headers=headers,
+        json=[{"key": "site_loading", "value": "confetti"}],
+    )
+    assert bad.status_code == 422
+    assert _config_value(client, "site_loading") != "confetti"
+    ok = client.put(
+        "/api/v1/admin/site/config",
+        headers=headers,
+        json=[{"key": "site_loading", "value": "progress"}],
+    )
+    assert ok.status_code == 200

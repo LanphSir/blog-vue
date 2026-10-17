@@ -80,6 +80,7 @@ DEFAULT_SITE_CONFIG = {
     "sidebar_notice_visible": "true",
     "site_logo": "",
     "site_background": "none",
+    "site_loading": "spinner",
     "icp": "",
     "footer_text": "Powered by Vue3 + FastAPI",
     "site_about_markdown": ABOUT_MARKDOWN_TEMPLATE.strip(),

@@ -161,6 +161,8 @@ class SocialLinkCreate(BaseModel):
     url: str
     visible: bool = True
     sort_order: int = 0
+    icon_url: str | None = None
+    color: str | None = None
 
 
 class SocialLinkUpdate(BaseModel):
@@ -169,6 +171,8 @@ class SocialLinkUpdate(BaseModel):
     url: str | None = None
     visible: bool | None = None
     sort_order: int | None = None
+    icon_url: str | None = None
+    color: str | None = None
 
 
 class SocialLinkOut(BaseModel):
@@ -178,6 +182,8 @@ class SocialLinkOut(BaseModel):
     url: str
     visible: bool
     sort_order: int
+    icon_url: str | None = None
+    color: str | None = None
 
     model_config = {"from_attributes": True}
 
