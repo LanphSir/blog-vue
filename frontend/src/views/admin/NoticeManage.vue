@@ -48,8 +48,8 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑公告' : '新增公告'" :width="form.type === 'banner' ? '560px' : '860px'" :close-on-click-modal="false" top="6vh">
-      <el-form :model="form" label-width="70px">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑公告' : '新增公告'" :width="form.type === 'banner' ? '560px' : '860px'" :close-on-click-modal="false" top="6vh" @closed="formRef?.clearValidate()">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="70px">
         <el-form-item label="类型">
           <el-radio-group v-model="form.type">
             <el-radio-button value="banner">小 · 横幅</el-radio-button>
@@ -57,10 +57,10 @@
             <el-radio-button value="page">大 · 单页</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="标题">
+        <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" placeholder="公告标题" maxlength="200" />
         </el-form-item>
-        <el-form-item label="内容">
+        <el-form-item label="内容" prop="content">
           <el-input v-if="form.type === 'banner'" v-model="form.content" type="textarea" :rows="3" placeholder="横幅公告为纯文本，建议一句话" />
           <MarkdownEditor v-else v-model="form.content" class="notice-editor" />
         </el-form-item>
@@ -97,6 +97,11 @@ const saving = ref(false)
 const dialogVisible = ref(false)
 const emptyForm = () => ({ id: null, title: '', content: '', type: 'banner' })
 const form = ref(emptyForm())
+const formRef = ref(null)
+const rules = {
+  title: [{ required: true, whitespace: true, message: '请输入公告标题', trigger: 'blur' }],
+  content: [{ required: true, whitespace: true, message: '请输入内容', trigger: 'blur' }],
+}
 
 const selected = ref([])
 const batchBusy = ref(false)
@@ -150,14 +155,8 @@ function openDialog(row) {
 }
 
 async function handleSave() {
-  if (!form.value.title.trim()) {
-    ElMessage.warning('请填写标题')
-    return
-  }
-  if (!form.value.content.trim()) {
-    ElMessage.warning('请填写内容')
-    return
-  }
+  // 必填校验交给 el-form 规则（label 红星 + 表下红字）；formRef 意外缺失时放行，后端 422 兜底
+  if (formRef.value && !(await formRef.value.validate().catch(() => false))) return
   saving.value = true
   try {
     const payload = {

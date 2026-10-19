@@ -1,10 +1,10 @@
 <template>
   <el-card>
-    <el-form label-width="90px" :model="form">
-      <el-form-item label="标题">
+    <el-form ref="formRef" label-width="90px" :model="form" :rules="rules">
+      <el-form-item label="标题" prop="title">
         <el-input v-model="form.title" placeholder="文章标题" />
       </el-form-item>
-      <el-form-item label="Slug">
+      <el-form-item label="Slug" prop="slug">
         <el-input v-model="form.slug" placeholder="URL 别名，如 my-first-post" />
       </el-form-item>
       <el-form-item label="封面图">
@@ -82,6 +82,11 @@ const form = ref({
   category_id: null,
   tag_ids: [],
 })
+const formRef = ref(null)
+const rules = {
+  title: [{ required: true, whitespace: true, message: '请输入文章标题', trigger: 'blur' }],
+  slug: [{ required: true, whitespace: true, message: '请输入 Slug', trigger: 'blur' }],
+}
 
 const categories = ref([])
 const tags = ref([])
@@ -99,10 +104,8 @@ onMounted(async () => {
 })
 
 async function handleSave() {
-  if (!form.value.title || !form.value.slug) {
-    ElMessage.warning('标题和 Slug 不能为空')
-    return
-  }
+  // 必填校验交给 el-form 规则（label 红星 + 表下红字）；formRef 意外缺失时放行，后端 422 兜底
+  if (formRef.value && !(await formRef.value.validate().catch(() => false))) return
   saving.value = true
   try {
     if (postId) {

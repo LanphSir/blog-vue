@@ -8,6 +8,9 @@
           <el-form-item label="Logo 图片">
             <MediaPicker v-model="form.site_logo" tip="站点 Logo，设置后展示在导航栏左侧，未设置时显示站点名称" :preview-width="96" :preview-height="40" />
           </el-form-item>
+          <el-form-item label="站点图标">
+            <MediaPicker v-model="form.site_favicon" tip="浏览器标签页图标（favicon），建议 64×64 方形 PNG/ICO；留空用内置默认图标" :preview-width="48" :preview-height="48" />
+          </el-form-item>
         </el-form>
       </el-tab-pane>
 
@@ -78,6 +81,7 @@
                     style="width: 130px"
                     @input="markDirty(row)"
                   />
+                  <span class="row-req" title="必填">*</span>
                   <el-input v-model="row.url" placeholder="https://… 或 mailto:…" class="social-url" @input="markDirty(row)" />
                   <el-button
                     link
@@ -481,6 +485,14 @@ async function handleSave() {
 .social-url {
   flex: 1;
   min-width: 200px;
+}
+
+/* 社交行 URL 必填红星（自定义行不在 el-form 内，手动对齐 Element 星号色） */
+.social-row .row-req {
+  color: var(--el-color-danger, #f56c6c);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .social-hint {

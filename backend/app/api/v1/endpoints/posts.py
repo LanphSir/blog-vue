@@ -27,10 +27,16 @@ router = APIRouter()
 
 
 async def _apply_tags(db: DbDep, post: Post, tag_ids: list[int]) -> None:
-    if not tag_ids:
-        return
-    rows = (await db.execute(select(Tag).where(Tag.id.in_(tag_ids)))).scalars().all()
-    post.tags = list(rows)
+    # 赋值 relationship 集合前必须先把旧值加载进来：异步会话里对未加载的
+    # tags 直接赋值会触发同步懒加载（SQLAlchemy 要先取旧值做变更簿记），
+    # 在非 greenlet 上下文里就是 MissingGreenlet → 500（先 flush 再显式 refresh 规避）。
+    await db.refresh(post, attribute_names=["tags"])
+    if tag_ids:
+        rows = (await db.execute(select(Tag).where(Tag.id.in_(tag_ids)))).scalars().all()
+        post.tags = list(rows)
+    else:
+        # 空列表 = 清空标签（更新接口传 [] 时也要生效，不能提前 return）
+        post.tags = []
 
 
 # ---------------- Public ----------------

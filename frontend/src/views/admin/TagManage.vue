@@ -42,12 +42,12 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑标签' : '新增标签'" width="440px" :close-on-click-modal="false">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="名称">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑标签' : '新增标签'" width="440px" :close-on-click-modal="false" @closed="formRef?.clearValidate()">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="标签名称" @keyup.enter="handleSave" />
         </el-form-item>
-        <el-form-item label="Slug">
+        <el-form-item label="Slug" prop="slug">
           <el-input v-model="form.slug" placeholder="url 别名" @keyup.enter="handleSave" />
         </el-form-item>
         <el-form-item label="颜色">
@@ -79,6 +79,11 @@ const colorPresets = ['#2563EB', '#16A34A', '#DB2777', '#EA580C', '#7C3AED', '#0
 
 const tags = ref([])
 const loading = ref(false)
+const formRef = ref(null)
+const rules = {
+  name: [{ required: true, whitespace: true, message: '请输入名称', trigger: 'blur' }],
+  slug: [{ required: true, whitespace: true, message: '请输入 Slug', trigger: 'blur' }],
+}
 const saving = ref(false)
 const dialogVisible = ref(false)
 const form = ref({ id: null, name: '', slug: '', color: null, visible: true, sort_order: 0 })
@@ -133,10 +138,8 @@ function openDialog(row) {
 }
 
 async function handleSave() {
-  if (!form.value.name || !form.value.slug) {
-    ElMessage.warning('请填写名称和 Slug')
-    return
-  }
+  // 必填校验交给 el-form 规则（label 红星 + 表下红字）；formRef 意外缺失时放行，后端 422 兜底
+  if (formRef.value && !(await formRef.value.validate().catch(() => false))) return
   saving.value = true
   try {
     const payload = { ...form.value }
@@ -153,6 +156,7 @@ async function handleSave() {
       dialogVisible.value = false
     } else {
       form.value = { id: null, name: '', slug: '', color: null, visible: true, sort_order: tags.value.length }
+      formRef.value?.clearValidate()
     }
     load()
   } finally {

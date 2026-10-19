@@ -37,9 +37,9 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑菜单' : '新增菜单'" width="520px" :close-on-click-modal="false">
-      <el-form :model="form" label-width="90px">
-        <el-form-item label="菜单文字">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑菜单' : '新增菜单'" width="520px" :close-on-click-modal="false" @closed="formRef?.clearValidate()">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+        <el-form-item label="菜单文字" prop="label">
           <el-input v-model="form.label" placeholder="如：文章" maxlength="50" />
         </el-form-item>
         <el-form-item label="类型">
@@ -49,7 +49,7 @@
             <el-radio value="category">栏目下拉</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="form.kind !== 'category'" :label="form.kind === 'external' ? 'URL' : '路径'">
+        <el-form-item v-if="form.kind !== 'category'" :label="form.kind === 'external' ? 'URL' : '路径'" prop="path">
           <el-input v-model="form.path" :placeholder="form.kind === 'external' ? 'https://example.com' : '以 / 开头，如 /posts'" />
         </el-form-item>
         <el-form-item label="上级菜单">
@@ -115,6 +115,12 @@ const saving = ref(false)
 const dialogVisible = ref(false)
 const emptyForm = () => ({ id: null, label: '', kind: 'link', path: '', icon: null, parent_id: null, sort_order: 0, visible: true })
 const form = ref(emptyForm())
+const formRef = ref(null)
+const rules = {
+  label: [{ required: true, whitespace: true, message: '请填写菜单文字', trigger: 'blur' }],
+  // 栏目下拉类型时该表单项被 v-if 隐藏，不参与校验
+  path: [{ required: true, whitespace: true, message: '请输入链接地址', trigger: 'blur' }],
+}
 
 const tree = computed(() => {
   const tops = flat.value.filter((m) => !m.parent_id)
@@ -177,6 +183,8 @@ function validate() {
 }
 
 async function handleSave() {
+  // 必填校验交给 el-form 规则（label 红星 + 表下红字）；formRef 意外缺失时放行，后端 422 兜底
+  if (formRef.value && !(await formRef.value.validate().catch(() => false))) return
   const error = validate()
   if (error) {
     ElMessage.warning(error)

@@ -74,6 +74,7 @@ export const useConfigStore = defineStore('config', () => {
     configs.value = map
     applyAccentColor()
     applyBackground()
+    applyFavicon()
     setSiteName(map.site_name)
     await Promise.all([menusReq, linksReq, noticesReq])
   }
@@ -88,6 +89,19 @@ export const useConfigStore = defineStore('config', () => {
   function applyBackground() {
     const key = configs.value.site_background
     document.documentElement.dataset.bg = BACKGROUND_KEYS.includes(key) ? key : 'none'
+  }
+
+  // 浏览器标签页图标：配置了 site_favicon 就覆盖 index.html 的静态占位，
+  // 留空恢复 /favicon.ico；前后台共用 fetchConfig，所以全站统一
+  function applyFavicon() {
+    const url = (configs.value.site_favicon || '').trim() || '/favicon.ico'
+    let link = document.querySelector("link[rel='icon']")
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      document.head.appendChild(link)
+    }
+    link.href = url
   }
 
   return {

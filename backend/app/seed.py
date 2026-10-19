@@ -79,6 +79,7 @@ DEFAULT_SITE_CONFIG = {
     "sidebar_recent_visible": "true",
     "sidebar_notice_visible": "true",
     "site_logo": "",
+    "site_favicon": "",
     "site_background": "none",
     "site_loading": "spinner",
     "icp": "",

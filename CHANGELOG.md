@@ -2,6 +2,35 @@
 
 本文件记录项目各阶段的功能开发与变更，按时间倒序排列。
 
+## [0.15.1] - 2026-10-19
+
+### 后台表单必填项：红色星号 + 提交校验
+
+- 以后端 schema 必填字段为准，各管理页 `el-form` 挂 `:rules` + 表单项 `prop`（Element 自动渲染 label 红星、提交 `validate()` 拦截并在表下显示红字，替换原先散落的 `ElMessage.warning` 手写校验）：分类/标签（名称、Slug）、友链（名称、地址，含 http(s) 格式规则）、轮播图（标题）、公告（标题、内容）、导航菜单（菜单文字；路径条件必填——栏目下拉类型隐藏该项即不校验）、文章编辑（标题、Slug）
+- 弹窗加 `@closed` 清校验，「保存并继续」重置表单后同步 `clearValidate()`；社交链接行 URL 在自定义行（非 el-form）加红星标记（`.row-req`，保存校验沿用 `validateSocialRows`）
+- 站点配置各项后端均允许留空（有默认/回退），故不标必填——保持前后端一致
+
+## [0.15.0] - 2026-10-19
+
+### 后台侧栏：图标收缩 + 拖拽排序
+
+- 侧栏底部新增两枚按钮：「收起菜单」收缩为 64px 图标窄条（全部菜单补了图标，状态记 localStorage `blog_admin_collapse`，刷新/下次进入保持）；「菜单排序」开启后菜单项可拖拽换位，拖动即时保存（`blog_admin_nav_order` 存路径数组，排序模式期间禁用点击跳转，新增页面自动追加末尾）
+
+## [0.14.2] - 2026-10-17
+
+### 站点 favicon 可配置
+
+- 站点配置新增 `site_favicon`（基础信息 Tab，MediaPicker 选图）：`stores/config.js` 拉取配置后动态改写 `<link rel="icon">`，前后台全站统一生效；留空回退内置默认图标
+- 新增 `frontend/public/favicon.ico`（64×64 PNG-in-ICO，主题蓝文档图形，此前 index.html 引用的该文件并不存在）
+
+## [0.14.1] - 2026-10-17
+
+### 修复：带标签保存文章 500（MissingGreenlet）
+
+- `_apply_tags` 赋值 `post.tags` 前异步会话未加载该关系，SQLAlchemy 变更簿记触发同步懒加载 → `MissingGreenlet`；保存任何带标签（或清空标签）的文章必 500。修复：赋值前先 `await db.refresh(post, attribute_names=["tags"])`
+- 顺带修复隐藏语义 bug：`tag_ids=[]` 原本直接 return 不清空，现在更新传空数组会正确清空标签；`tag_ids=None`（未传）仍不动
+- 测试：新增 `tests/test_post_tags.py`（创建带标签/清空标签两条回归用例），55 用例全绿
+
 ## [0.14.0] - 2026-10-16
 
 ### 社交徽章自定义 / 页面加载动画 / 文章页体验

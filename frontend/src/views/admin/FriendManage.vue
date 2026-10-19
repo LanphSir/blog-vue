@@ -42,12 +42,12 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑友链' : '新增友链'" width="520px">
-      <el-form label-width="80px" :model="form">
-        <el-form-item label="名称" required>
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑友链' : '新增友链'" width="520px" @closed="formRef?.clearValidate()">
+      <el-form ref="formRef" label-width="80px" :model="form" :rules="rules">
+        <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="友链名称" maxlength="100" />
         </el-form-item>
-        <el-form-item label="地址" required>
+        <el-form-item label="地址" prop="url">
           <el-input v-model="form.url" placeholder="https://example.com" />
         </el-form-item>
         <el-form-item label="描述">
@@ -86,6 +86,14 @@ const saving = ref(false)
 const dialogVisible = ref(false)
 const emptyForm = () => ({ id: null, name: '', url: '', description: '', icon: null, visible: true, sort_order: 0 })
 const form = ref(emptyForm())
+const formRef = ref(null)
+const rules = {
+  name: [{ required: true, whitespace: true, message: '请输入名称', trigger: 'blur' }],
+  url: [
+    { required: true, whitespace: true, message: '请输入地址', trigger: 'blur' },
+    { pattern: /^https?:\/\//, message: '地址需以 http:// 或 https:// 开头', trigger: 'blur' },
+  ],
+}
 
 const selected = ref([])
 const batchBusy = ref(false)
@@ -152,10 +160,10 @@ function openEdit(row) {
 }
 
 async function handleSave() {
+  // 必填/格式校验交给 el-form 规则（label 红星 + 表下红字）；formRef 意外缺失时放行，后端 422 兜底
+  if (formRef.value && !(await formRef.value.validate().catch(() => false))) return
   const name = (form.value.name || '').trim()
   const url = (form.value.url || '').trim()
-  if (!name) return ElMessage.warning('请填写名称')
-  if (!/^https?:\/\//.test(url)) return ElMessage.warning('地址需以 http:// 或 https:// 开头')
   const payload = {
     name,
     url,

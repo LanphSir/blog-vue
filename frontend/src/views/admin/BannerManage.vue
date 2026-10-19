@@ -44,9 +44,9 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑轮播图' : '新增轮播图'" width="520px">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="标题">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑轮播图' : '新增轮播图'" width="520px" @closed="formRef?.clearValidate()">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" placeholder="轮播主标题" />
         </el-form-item>
         <el-form-item label="副标题">
@@ -91,6 +91,10 @@ const loading = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
 const form = ref({ id: null, title: '', subtitle: '', image: null, link: null, sort_order: 0, enabled: true })
+const formRef = ref(null)
+const rules = {
+  title: [{ required: true, whitespace: true, message: '请输入标题', trigger: 'blur' }],
+}
 
 const selected = ref([])
 const batchBusy = ref(false)
@@ -142,10 +146,8 @@ function openDialog(row) {
 }
 
 async function handleSave() {
-  if (!form.value.title) {
-    ElMessage.warning('标题不能为空')
-    return
-  }
+  // 必填校验交给 el-form 规则（label 红星 + 表下红字）；formRef 意外缺失时放行，后端 422 兜底
+  if (formRef.value && !(await formRef.value.validate().catch(() => false))) return
   saving.value = true
   try {
     if (form.value.id) {
