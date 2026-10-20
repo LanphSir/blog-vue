@@ -23,6 +23,7 @@ class PostCreate(BaseModel):
     is_featured: bool = False
     sort_weight: int = 0
     author: str | None = None
+    comments_enabled: bool = True
     category_id: int | None = None
     tag_ids: list[int] = []
 
@@ -38,6 +39,7 @@ class PostUpdate(BaseModel):
     is_featured: bool | None = None
     sort_weight: int | None = None
     author: str | None = None
+    comments_enabled: bool | None = None
     category_id: int | None = None
     tag_ids: list[int] | None = None
 
@@ -54,6 +56,7 @@ class PostOut(BaseModel):
     is_featured: bool
     sort_weight: int
     author: str | None
+    comments_enabled: bool = True
     category_id: int | None
     created_at: datetime
     updated_at: datetime
@@ -65,6 +68,7 @@ class PostOut(BaseModel):
 class PostDetailOut(PostOut):
     content: str
     tags: list[TagOut] = []
+    comment_count: int = 0  # 端点组装：approved 且未删的评论总数
 
 
 class PostListOut(PostOut):

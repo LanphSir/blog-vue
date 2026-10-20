@@ -7,9 +7,11 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.comment import Comment
 from app.models.post import Post
 from app.schemas.post import PostCreate, PostUpdate
 
@@ -104,6 +106,8 @@ async def restore_post(db: AsyncSession, post: Post) -> None:
 
 
 async def hard_delete_post(db: AsyncSession, post: Post) -> None:
+    # 彻底删除时级联清评论：SQLite 未开 FK 级联，孤楼占位无意义，显式删干净
+    await db.execute(sa_delete(Comment).where(Comment.post_id == post.id))
     await db.delete(post)
 
 

@@ -7,7 +7,7 @@ deleted_at（见 crud/post.py），保持列表口径一致。
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -35,6 +35,7 @@ class Post(Base):
     is_featured: Mapped[bool] = mapped_column(default=False, index=True)
     sort_weight: Mapped[int] = mapped_column(Integer, default=0)
     author: Mapped[str | None] = mapped_column(String(100), default=None)
+    comments_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), default=None)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

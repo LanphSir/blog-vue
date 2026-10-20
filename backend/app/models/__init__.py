@@ -1,3 +1,4 @@
+from app.models.comment import Comment  # noqa: F401
 from app.models.post import Category, Post, Tag  # noqa: F401
 from app.models.site import (  # noqa: F401
     Banner,

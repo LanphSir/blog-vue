@@ -20,6 +20,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.core.logging import setup_logging
+from app.models import comment as comment_model  # noqa: F401  (register tables)
 from app.models import post as post_model  # noqa: F401  (register tables)
 from app.models import site as site_model  # noqa: F401
 from app.models import user as user_model  # noqa: F401

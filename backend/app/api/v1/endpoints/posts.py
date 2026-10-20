@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbDep
 from app.crud import category as category_crud
+from app.crud import comment as comment_crud
 from app.crud import post as post_crud
 from app.models.post import Post, Tag
 from app.schemas.common import ApiResponse, PageData, ok
@@ -113,7 +114,10 @@ async def get_post(
         await post_crud.increment_view_count(db, post)
     await db.refresh(post)
     await db.refresh(post, attribute_names=["tags"])
-    return ok(PostDetailOut.model_validate(post))
+    detail = PostDetailOut.model_validate(post)
+    if post.comments_enabled:
+        detail.comment_count = await comment_crud.count_public(db, post.id)
+    return ok(detail)
 
 
 @router.get("/posts/{slug}/neighbors", summary="文章上一篇/下一篇（公开）")

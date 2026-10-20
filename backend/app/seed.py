@@ -82,6 +82,7 @@ DEFAULT_SITE_CONFIG = {
     "site_favicon": "",
     "site_background": "none",
     "site_loading": "spinner",
+    "site_comment_audit": "true",
     "icp": "",
     "footer_text": "Powered by Vue3 + FastAPI",
     "site_about_markdown": ABOUT_MARKDOWN_TEMPLATE.strip(),
