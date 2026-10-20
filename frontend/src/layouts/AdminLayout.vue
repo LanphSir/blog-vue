@@ -29,8 +29,14 @@
           @dragover.prevent
           @drop.prevent="dragFrom = -1"
         >
-          <el-icon><component :is="item.icon" /></el-icon>
-          <template #title>{{ item.label }}</template>
+          <el-icon>
+            <component :is="item.icon" />
+            <span v-if="item.index === '/admin/comments' && pendingCount > 0" class="nav-dot" />
+          </el-icon>
+          <template #title>
+            {{ item.label }}
+            <span v-if="item.index === '/admin/comments' && pendingCount > 0" class="nav-badge">{{ pendingCount }}</span>
+          </template>
         </el-menu-item>
       </el-menu>
 
@@ -85,11 +91,12 @@
  * 坑：后台页不需要前台那些花哨背景，进入时强制 data-bg="none"，
  * 离开（onUnmounted）时恢复 applyBackground()——否则会残留「后台无背景」的状态到前台。
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   Bell,
+  ChatDotSquare,
   Document,
   Expand,
   Film,
@@ -129,6 +136,7 @@ const DEFAULT_NAV = [
   { index: '/admin/media', label: '媒体库', icon: PictureFilled },
   { index: '/admin/menus', label: '导航菜单', icon: Menu },
   { index: '/admin/notices', label: '公告管理', icon: Bell },
+  { index: '/admin/comments', label: '评论管理', icon: ChatDotSquare },
   { index: '/admin/config', label: '站点配置', icon: Setting },
 ]
 
@@ -180,6 +188,24 @@ function moveTo(i) {
   saveOrder()
 }
 
+// 待审评论红点：进入后台时拉一次，之后每次路由变化刷新（审完评论回到菜单即见）
+const pendingCount = ref(0)
+
+async function refreshPending() {
+  try {
+    const res = await adminPendingCommentCount()
+    pendingCount.value = res.data ?? 0
+  } catch {
+    /* 未登录等场景静默，角标不是关键路径 */
+  }
+}
+
+watch(() => route.path, refreshPending)
+
+// 评论管理页处理完（同一路由内操作）通过全局事件触发刷新
+window.addEventListener('blog-comments-changed', refreshPending)
+onBeforeUnmount(() => window.removeEventListener('blog-comments-changed', refreshPending))
+
 onMounted(() => {
   if (!authStore.user) {
     authStore.fetchUser().catch(() => {})
@@ -187,6 +213,7 @@ onMounted(() => {
   configStore.fetchConfig().then(() => {
     document.documentElement.dataset.bg = 'none'
   })
+  refreshPending()
 })
 
 onUnmounted(() => {
@@ -216,6 +243,28 @@ function handleLogout() {
   transition: width 0.2s ease;
 }
 
+/* 待审评论红点：收缩态显示在图标右上角；展开态显示为数字徽标 */
+.el-menu-item .el-icon {
+  position: relative;
+}
+.nav-dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--el-color-danger);
+}
+.nav-badge {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 16px;
+  color: #fff;
+  background: var(--el-color-danger);
+}
 .brand {
   height: 60px;
   display: flex;

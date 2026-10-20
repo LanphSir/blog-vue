@@ -60,6 +60,18 @@ async def list_comments(
     )
 
 
+@router.get("/comments/count", summary="评论总数（公开）")
+async def comment_count(db: DbDep, slug: str = Query(..., min_length=1)) -> ApiResponse[int]:
+    """评论区头部计数：与文章详情的 comment_count 同一口径（approved 且未删，
+    含楼中回复），供前端发表后轻量刷新，不重复拖整篇详情。"""
+    post = await post_crud.get_by_slug(db, slug)
+    if post is None or post.status != "published":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文章不存在")
+    if not post.comments_enabled:
+        return ok(0)
+    return ok(await comment_crud.count_public(db, post.id))
+
+
 @router.get("/comments/{comment_id}/replies", summary="楼中回复分页（公开）")
 async def list_replies(
     db: DbDep,
@@ -152,11 +164,16 @@ async def admin_list_comments(
     )
     post_ids = {c.post_id for c in items}
     titles: dict[int, str] = {}
+    slugs: dict[int, str] = {}
     if post_ids:
-        rows = await db.execute(select(Post.id, Post.title).where(Post.id.in_(post_ids)))
-        titles = dict(rows.all())
+        rows = (
+            await db.execute(select(Post.id, Post.title, Post.slug).where(Post.id.in_(post_ids)))
+        ).all()
+        titles = {row[0]: row[1] for row in rows}
+        slugs = {row[0]: row[2] for row in rows}
     for item in items:
         item.post_title = titles.get(item.post_id)
+        item.post_slug = slugs.get(item.post_id)
     return ok(PageData(items=items, total=total, page=page, page_size=page_size))
 
 

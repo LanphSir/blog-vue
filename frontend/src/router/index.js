@@ -42,6 +42,7 @@ const routes = [
       { path: 'media', name: 'admin-media', meta: { title: '媒体库' }, component: () => import('@/views/admin/MediaManage.vue') },
       { path: 'menus', name: 'admin-menus', meta: { title: '导航菜单' }, component: () => import('@/views/admin/MenuManage.vue') },
       { path: 'notices', name: 'admin-notices', meta: { title: '公告管理' }, component: () => import('@/views/admin/NoticeManage.vue') },
+      { path: 'comments', name: 'admin-comments', meta: { title: '评论管理' }, component: () => import('@/views/admin/CommentManage.vue') },
       { path: 'config', name: 'admin-config', meta: { title: '站点配置' }, component: () => import('@/views/admin/ConfigManage.vue') },
       { path: 'friends', name: 'admin-friends', meta: { title: '友链管理' }, component: () => import('@/views/admin/FriendManage.vue') },
     ],

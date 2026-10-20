@@ -29,6 +29,8 @@ class CommentOut(BaseModel):
     nickname: str
     content: str
     created_at: datetime
+    # 占位标记（原文已被端点替换为占位文案）；前端据此灰显并禁用回复
+    deleted: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -47,3 +49,4 @@ class CommentAdminOut(CommentOut):
     user_agent: str | None
     updated_at: datetime
     post_title: str | None = None  # 端点组装时手动填充
+    post_slug: str | None = None

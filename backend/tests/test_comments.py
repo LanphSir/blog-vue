@@ -253,6 +253,27 @@ class TestDeletePlaceholder:
         body = client.get(f"/api/v1/comments?slug={post['slug']}").text
         assert "楼主内容" not in body
 
+    def test_count_endpoint(self, client, admin, post):
+        assert client.get(f"/api/v1/comments/count?slug={post['slug']}").json()["data"] == 0
+        _set_config(client, admin, "site_comment_audit", "false")
+        root = _post_comment(client, post_slug=post["slug"], nickname="n", content="c").json()[
+            "data"
+        ]
+        _post_comment(
+            client, post_slug=post["slug"], nickname="r", content="r", parent_id=root["id"]
+        )
+        # 总数口径 = approved 且未删（含回复）
+        assert client.get(f"/api/v1/comments/count?slug={post['slug']}").json()["data"] == 2
+        # 关闭评论后计数返回 0
+        client.put(
+            f"/api/v1/admin/posts/{post['id']}",
+            json={"comments_enabled": False},
+            headers=_auth(admin),
+        )
+        assert client.get(f"/api/v1/comments/count?slug={post['slug']}").json()["data"] == 0
+        # 未审文章 → 404
+        assert client.get("/api/v1/comments/count?slug=nope").status_code == 404
+
 
 class TestVisibility:
     def test_hidden_comment_keeps_replies(self, client, admin, post):

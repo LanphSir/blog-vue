@@ -20,6 +20,8 @@
         <el-button size="small" type="primary" plain :disabled="batchBusy" @click="openMoveDialog">移动分类</el-button>
         <el-button size="small" type="success" plain :disabled="batchBusy" @click="batchStatus('published')">批量发布</el-button>
         <el-button size="small" plain :disabled="batchBusy" @click="batchStatus('draft')">转为草稿</el-button>
+        <el-button size="small" type="primary" plain :disabled="batchBusy" @click="batchComments(true)">开启评论</el-button>
+        <el-button size="small" plain :disabled="batchBusy" @click="batchComments(false)">关闭评论</el-button>
         <el-button size="small" type="danger" plain :disabled="batchBusy" @click="batchDelete">移入回收站</el-button>
       </template>
       <template v-else>
@@ -195,6 +197,15 @@ function batchStatus(next) {
 
 function batchDelete() {
   return batchRun('已移入回收站', `确认将选中的 ${selected.value.length} 篇文章移入回收站？可随时恢复。`, (id) => adminDeletePost(id))
+}
+
+function batchComments(enabled) {
+  const text = enabled ? '批量开启评论' : '批量关闭评论'
+  return batchRun(
+    text,
+    `确认将选中的 ${selected.value.length} 篇文章${enabled ? '开启' : '关闭'}评论？关闭后文章页不再显示评论区。`,
+    (id) => adminUpdatePost(id, { comments_enabled: enabled }),
+  )
 }
 
 function batchRestore() {

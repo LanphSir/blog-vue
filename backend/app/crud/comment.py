@@ -22,6 +22,7 @@ def comment_to_out(c: Comment) -> CommentOut:
     out = CommentOut.model_validate(c)
     if c.is_deleted:
         out.content = DELETED_PLACEHOLDER
+        out.deleted = True
     return out
 
 

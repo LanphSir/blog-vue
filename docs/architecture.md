@@ -36,7 +36,7 @@ SQLite
 ## 3. 数据模型
 
 - `users`：管理员账号（密码以 bcrypt 哈希存储）
-- `posts`：文章（标题、Slug、封面、正文 Markdown、摘要、状态、浏览量、置顶、分类、发布时间）
+- `posts`：文章（标题、Slug、封面、正文 Markdown、摘要、状态、浏览量、置顶、分类、发布时间、允许评论 comments_enabled）
 - `categories`：分类（名称、Slug、排序）
 - `tags`：标签（名称、Slug），与文章多对多
 - `site_configs`：键值型站点配置（站点名、描述、Logo（设置后展示于导航栏左侧，空则回退站点名）、备案（页脚链接至工信部备案系统）、页脚、关于我介绍 Markdown（`site_about_markdown`，About 页 MdPreview 渲染）、背景方案（`site_background` 枚举）等标量配置；布尔值以字符串 "true"/"false" 存储）
@@ -45,6 +45,7 @@ SQLite
 - `media_assets`：媒体库（上传图片登记：原名/存储名 `时间戳_哈希前8位`/相对路径 `年/月/日/文件`/url/mime/大小/时间；上传按此规则落盘并可被列表/引用保护删除；首次启动盘点 uploads 既有文件；迁移 `af5b7e9d2c31`）
 - `social_links`：社交链接（platform 预置或 custom+label/url/visible/sort_order，驱动简介卡片图标）
 - `notices`：公告（title/content/type[banner|dialog|page]/enabled/version/sort_order；内容变更自动升版本触发重推）
+- `comments`：评论（post_id/parent_id+root_id 回复树/reply_to_nickname 冗余昵称/nickname/email/content/status[pending|approved|hidden]/is_deleted 软删/ip/user_agent/时间戳；匿名访客（昵称默认 `用户_随机数`、头像昵称哈希色不存库）；`site_comment_audit` 决定初始状态；被删评论有存活回复时前台显示「该评论已被删除」占位；迁移 `d8f3b6c2a9e4`）
 - 数据迁移：旧 `site_menus`/`profile_links` JSON 配置与旧公告三键在启动时一次性迁移入对应表（解析失败仅告警，幂等）；迁移后旧键不再出现在默认配置与管理表单
 
 ## 4. 统一响应格式

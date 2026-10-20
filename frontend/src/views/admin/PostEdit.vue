@@ -34,6 +34,10 @@
         <span class="form-gap" />
         <el-switch v-model="form.is_featured" active-text="推荐" />
       </el-form-item>
+      <el-form-item label="允许评论">
+        <el-switch v-model="form.comments_enabled" />
+        <span class="form-hint">关闭后文章页不显示评论区</span>
+      </el-form-item>
       <el-form-item label="排序权重">
         <el-input-number v-model="form.sort_weight" :min="0" />
         <span class="form-hint">数值越大越靠前</span>
@@ -79,6 +83,7 @@ const form = ref({
   is_featured: false,
   sort_weight: 0,
   author: '',
+  comments_enabled: true,
   category_id: null,
   tag_ids: [],
 })

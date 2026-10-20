@@ -20,6 +20,10 @@
             <el-icon><Clock /></el-icon>
             <span class="meta-text">{{ readingMinutes }} 分钟</span>
           </span>
+          <span v-if="post.comments_enabled" class="meta-item" title="评论数">
+            <el-icon><ChatDotSquare /></el-icon>
+            <span class="meta-text">{{ post.comment_count }}</span>
+          </span>
           <ColoredTag v-for="tag in post.tags" :key="tag.id" :text="tag.name" :color="tag.color" />
           <span class="spacer" />
           <button class="share-btn" @click="copyLink">复制链接</button>
@@ -67,6 +71,8 @@
         />
       </aside>
     </div>
+
+    <CommentSection v-if="post.comments_enabled" :key="post.slug" :slug="post.slug" />
 
       <div class="theme-switch">
         <el-dropdown trigger="hover" :show-timeout="120" :hide-timeout="120" placement="top-end" popper-class="theme-popper" @command="setPreviewTheme">
@@ -128,7 +134,8 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import 'md-editor-v3/lib/preview.css'
 import ColoredTag from '@/components/ColoredTag.vue'
-import { ArrowDown, Brush, Calendar, Clock, Cpu, View } from '@element-plus/icons-vue'
+import { ArrowDown, Brush, Calendar, ChatDotSquare, Clock, Cpu, View } from '@element-plus/icons-vue'
+import CommentSection from '@/components/comment/CommentSection.vue'
 import { setupMdEditor } from '@/composables/useMdEditor'
 import { getPostBySlug, getPostNeighbors } from '@/api/posts'
 import { setRouteTitle } from '@/utils/pageTitle'

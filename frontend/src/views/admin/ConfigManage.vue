@@ -11,6 +11,10 @@
           <el-form-item label="站点图标">
             <MediaPicker v-model="form.site_favicon" tip="浏览器标签页图标（favicon），建议 64×64 方形 PNG/ICO；留空用内置默认图标" :preview-width="48" :preview-height="48" />
           </el-form-item>
+          <el-form-item label="评论先审后发">
+            <el-switch :model-value="isOn('site_comment_audit')" @update:model-value="(v) => setSwitch('site_comment_audit', v)" />
+            <span class="field-tip">开启后新评论需要你在「评论管理」通过后才会公开显示；关闭则发表即显示。</span>
+          </el-form-item>
         </el-form>
       </el-tab-pane>
 
@@ -485,6 +489,13 @@ async function handleSave() {
 .social-url {
   flex: 1;
   min-width: 200px;
+}
+
+/* 配置项开关右侧的说明文字 */
+.field-tip {
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--blog-text-secondary);
 }
 
 /* 社交行 URL 必填红星（自定义行不在 el-form 内，手动对齐 Element 星号色） */
