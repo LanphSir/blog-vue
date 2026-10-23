@@ -12,8 +12,8 @@
             <MediaPicker v-model="form.site_favicon" tip="浏览器标签页图标（favicon），建议 64×64 方形 PNG/ICO；留空用内置默认图标" :preview-width="48" :preview-height="48" />
           </el-form-item>
           <el-form-item label="评论先审后发">
-            <el-switch :model-value="isOn('site_comment_audit')" @update:model-value="(v) => setSwitch('site_comment_audit', v)" />
-            <span class="field-tip">开启后新评论需要你在「评论管理」通过后才会公开显示；关闭则发表即显示。</span>
+            <el-switch :model-value="isOn('site_comment_audit')" :loading="auditSaving" @update:model-value="saveAuditSwitch" />
+            <span class="field-tip">开启后新评论需要你在「评论管理」通过后才会公开显示；关闭则发表即显示。切换后立即生效，无需再点保存。</span>
           </el-form-item>
         </el-form>
       </el-tab-pane>
@@ -239,6 +239,24 @@ function isOn(key) {
 
 function setSwitch(key, value) {
   form[key] = String(value)
+}
+
+// 审核开关是行为开关不是文案：切换后立即单键 PUT 生效（与分类等列表页的
+// el-switch 即时保存一致），避免用户以为拨了就保存、离开页面后配置回弹；
+// 失败回滚 UI，开关状态始终与服务端一致
+const auditSaving = ref(false)
+async function saveAuditSwitch(value) {
+  const prev = form.site_comment_audit
+  form.site_comment_audit = String(value)
+  auditSaving.value = true
+  try {
+    await updateSiteConfig([{ key: 'site_comment_audit', value: String(value) }])
+    ElMessage.success(value ? '已开启先审后发' : '已关闭先审后发，新评论发表即显示')
+  } catch {
+    form.site_comment_audit = prev
+  } finally {
+    auditSaving.value = false
+  }
 }
 
 onMounted(async () => {

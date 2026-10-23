@@ -45,7 +45,7 @@ SQLite
 - `media_assets`：媒体库（上传图片登记：原名/存储名 `时间戳_哈希前8位`/相对路径 `年/月/日/文件`/url/mime/大小/时间；上传按此规则落盘并可被列表/引用保护删除；首次启动盘点 uploads 既有文件；迁移 `af5b7e9d2c31`）
 - `social_links`：社交链接（platform 预置或 custom+label/url/visible/sort_order，驱动简介卡片图标）
 - `notices`：公告（title/content/type[banner|dialog|page]/enabled/version/sort_order；内容变更自动升版本触发重推）
-- `comments`：评论（post_id/parent_id+root_id 回复树/reply_to_nickname 冗余昵称/nickname/email/content/status[pending|approved|hidden]/is_deleted 软删/ip/user_agent/时间戳；匿名访客（昵称默认 `用户_随机数`、头像昵称哈希色不存库）；`site_comment_audit` 决定初始状态；被删评论有存活回复时前台显示「该评论已被删除」占位；迁移 `d8f3b6c2a9e4`）
+- `comments`：评论（post_id/parent_id+root_id 回复树/reply_to_nickname 冗余昵称/nickname/email/content/status[pending|approved|hidden]/is_deleted 软删/is_pinned+pinned_at 置顶（仅顶级，公开列表置顶楼最前、置顶间按置顶时间新→旧）/ip/user_agent/时间戳；匿名访客（昵称默认 `用户_随机数`、头像昵称哈希色不存库、身份由前端 localStorage 记忆）；`site_comment_audit` 决定初始状态；被删评论有存活回复时前台显示「该评论已被删除」占位；迁移 `d8f3b6c2a9e4`、`e1c7a9d4f2b8`）
 - 数据迁移：旧 `site_menus`/`profile_links` JSON 配置与旧公告三键在启动时一次性迁移入对应表（解析失败仅告警，幂等）；迁移后旧键不再出现在默认配置与管理表单
 
 ## 4. 统一响应格式

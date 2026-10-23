@@ -130,7 +130,14 @@ async def list_comment_threads(
     rows = (
         (
             await db.execute(
-                query.order_by(Comment.created_at.asc(), Comment.id.asc())
+                # 置顶楼最前（多个置顶按置顶操作时间新→旧，SQLite DESC 时 NULL 靠后，
+                # 非置顶行 pinned_at 为 NULL 自然落在置顶组之后），其余仍时间正序
+                query.order_by(
+                    Comment.is_pinned.desc(),
+                    Comment.pinned_at.desc(),
+                    Comment.created_at.asc(),
+                    Comment.id.asc(),
+                )
                 .offset((page - 1) * page_size)
                 .limit(page_size)
             )

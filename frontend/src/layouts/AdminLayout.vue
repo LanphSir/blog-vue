@@ -6,38 +6,64 @@
         <span v-else class="brand-dot">{{ (configStore.siteName() || 'B').slice(0, 1) }}</span>
       </div>
 
-      <p v-if="sortMode && !collapsed" class="sort-hint">按住菜单项拖动排序，松开即保存</p>
+      <p v-if="sortMode && !collapsed" class="sort-hint">按住顶层菜单拖动排序（分组内部顺序固定），松开即保存</p>
 
+      <!-- key 挂 activeGroup：跨组导航时重挂载菜单，让 default-openeds 生效、当前组自动展开 -->
       <el-menu
-        :key="sortMode ? 'menu-sort' : 'menu-nav'"
+        :key="`${sortMode ? 'sort' : 'nav'}-${activeGroup}`"
         :default-active="route.path"
+        :default-openeds="sortMode ? [] : [activeGroup]"
         :router="!sortMode"
         :collapse="collapsed"
         :collapse-transition="false"
+        unique-opened
+        popper-class="admin-submenu-popper"
+        class="side-menu"
+        :class="{ 'no-submenu-click': sortMode }"
         background-color="#1d1e1f"
         text-color="#bfcbd9"
         active-text-color="#409eff"
       >
-        <el-menu-item
-          v-for="(item, i) in navItems"
-          :key="item.index"
-          :index="item.index"
-          :draggable="sortMode"
-          :class="{ 'is-sorting': sortMode, 'is-dragging': sortMode && dragFrom === i }"
-          @dragstart="dragFrom = i"
-          @dragenter.prevent="moveTo(i)"
-          @dragover.prevent
-          @drop.prevent="dragFrom = -1"
-        >
-          <el-icon>
-            <component :is="item.icon" />
-            <span v-if="item.index === '/admin/comments' && pendingCount > 0" class="nav-dot" />
-          </el-icon>
-          <template #title>
-            {{ item.label }}
-            <span v-if="item.index === '/admin/comments' && pendingCount > 0" class="nav-badge">{{ pendingCount }}</span>
-          </template>
-        </el-menu-item>
+        <template v-for="(item, i) in topItems" :key="item.key">
+          <el-sub-menu
+            v-if="item.children"
+            :index="item.key"
+            :draggable="sortMode"
+            :class="{ 'is-sorting': sortMode, 'is-dragging': sortMode && dragFrom === i }"
+            @dragstart="dragFrom = i"
+            @dragenter.prevent="moveTo(i)"
+            @dragover.prevent
+            @drop.prevent="dragFrom = -1"
+          >
+            <template #title>
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.label }}</span>
+            </template>
+            <el-menu-item v-for="child in item.children" :key="child.index" :index="child.index">
+              <el-icon><component :is="child.icon" /></el-icon>
+              <template #title>{{ child.label }}</template>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-menu-item
+            v-else
+            :index="item.index"
+            :draggable="sortMode"
+            :class="{ 'is-sorting': sortMode, 'is-dragging': sortMode && dragFrom === i }"
+            @dragstart="dragFrom = i"
+            @dragenter.prevent="moveTo(i)"
+            @dragover.prevent
+            @drop.prevent="dragFrom = -1"
+          >
+            <el-icon>
+              <component :is="item.icon" />
+              <span v-if="item.index === '/admin/comments' && pendingCount > 0" class="nav-dot" />
+            </el-icon>
+            <template #title>
+              {{ item.label }}
+              <span v-if="item.index === '/admin/comments' && pendingCount > 0" class="nav-badge">{{ pendingCount }}</span>
+            </template>
+          </el-menu-item>
+        </template>
       </el-menu>
 
       <div class="aside-foot">
@@ -97,6 +123,7 @@ import { ElMessage } from 'element-plus'
 import {
   Bell,
   ChatDotSquare,
+  Collection,
   Document,
   Expand,
   Film,
@@ -110,7 +137,9 @@ import {
   PriceTag,
   Rank,
   Setting,
+  Tools,
 } from '@element-plus/icons-vue'
+import { adminPendingCommentCount } from '@/api/comments'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { useThemeStore } from '@/stores/theme'
@@ -122,46 +151,93 @@ const configStore = useConfigStore()
 // 实例化即应用已保存的明暗主题（watch immediate）——直达/刷新后台时也生效
 const themeStore = useThemeStore()
 
-/* ---------------- 侧栏收缩与拖拽排序 ---------------- */
+/* ---------------- 侧栏收缩、分组与顶层拖拽排序 ---------------- */
 const COLLAPSE_KEY = 'blog_admin_collapse'
 const ORDER_KEY = 'blog_admin_nav_order'
+// 0.16.1 起侧栏分层：旧版存的是平铺 index 数组，用该标记保证只迁移一次
+const GROUPED_KEY = 'blog_admin_nav_grouped'
 
+// 顶层 6 项；children 为收缩栏目内部（顺序固定、不参与拖拽）
 const DEFAULT_NAV = [
-  { index: '/admin', label: '仪表盘', icon: Odometer },
-  { index: '/admin/posts', label: '文章管理', icon: Document },
-  { index: '/admin/categories', label: '分类管理', icon: Folder },
-  { index: '/admin/tags', label: '标签管理', icon: PriceTag },
-  { index: '/admin/friends', label: '友链管理', icon: Link },
-  { index: '/admin/banners', label: '轮播图', icon: Film },
-  { index: '/admin/media', label: '媒体库', icon: PictureFilled },
-  { index: '/admin/menus', label: '导航菜单', icon: Menu },
-  { index: '/admin/notices', label: '公告管理', icon: Bell },
-  { index: '/admin/comments', label: '评论管理', icon: ChatDotSquare },
-  { index: '/admin/config', label: '站点配置', icon: Setting },
+  { key: '/admin', index: '/admin', label: '仪表盘', icon: Odometer },
+  { key: '/admin/posts', index: '/admin/posts', label: '文章管理', icon: Document },
+  { key: '/admin/comments', index: '/admin/comments', label: '评论管理', icon: ChatDotSquare },
+  {
+    key: 'grp-content',
+    label: '内容分组',
+    icon: Collection,
+    children: [
+      { index: '/admin/categories', label: '分类管理', icon: Folder },
+      { index: '/admin/tags', label: '标签管理', icon: PriceTag },
+    ],
+  },
+  {
+    key: 'grp-site',
+    label: '网站设置',
+    icon: Tools,
+    children: [
+      { index: '/admin/friends', label: '友链管理', icon: Link },
+      { index: '/admin/banners', label: '轮播图', icon: Film },
+      { index: '/admin/menus', label: '导航菜单', icon: Menu },
+      { index: '/admin/notices', label: '公告管理', icon: Bell },
+      { index: '/admin/config', label: '站点配置', icon: Setting },
+    ],
+  },
+  { key: '/admin/media', index: '/admin/media', label: '媒体库', icon: PictureFilled },
 ]
 
 const collapsed = ref(localStorage.getItem(COLLAPSE_KEY) === '1')
 const sortMode = ref(false)
 const dragFrom = ref(-1)
 
-// 按保存的 index 顺序重排；名单变化时容错：删掉的剔除、新增的按默认顺序补到末尾
-function initialOrder() {
+function topLevelKeyOf(index) {
+  const hit = DEFAULT_NAV.find(
+    (item) => item.index === index || item.children?.some((c) => c.index === index),
+  )
+  return hit ? hit.key : null
+}
+
+// 顶层条目顺序：优先读保存的 key 数组；首次（或旧版平铺数组）按「子项→所属组」
+// 折算出组间顺序后迁移一次；名单变化容错——删掉的剔除、新增的按默认顺序补末尾
+function initialTopOrder() {
+  const byKey = new Map(DEFAULT_NAV.map((item) => [item.key, item]))
   let saved = []
   try {
     saved = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]')
   } catch {
     saved = []
   }
-  if (!Array.isArray(saved) || !saved.length) return [...DEFAULT_NAV]
-  const byIndex = new Map(DEFAULT_NAV.map((item) => [item.index, item]))
-  const ordered = saved.map((idx) => byIndex.get(idx)).filter(Boolean)
+  if (localStorage.getItem(GROUPED_KEY) !== '1') {
+    if (Array.isArray(saved) && saved.length) {
+      // 旧格式存量迁移：顶层存的是 index 路径，子页面折算成所属组（首次出现序）
+      const seen = []
+      for (const idx of saved) {
+        const key = topLevelKeyOf(idx)
+        if (key && !seen.includes(key)) seen.push(key)
+      }
+      saved = seen
+    }
+    localStorage.setItem(GROUPED_KEY, '1')
+    localStorage.setItem(ORDER_KEY, JSON.stringify(Array.isArray(saved) ? saved : []))
+  }
+  const valid = (Array.isArray(saved) ? saved : []).filter((k) => byKey.has(k))
+  const ordered = valid.map((k) => byKey.get(k))
   for (const item of DEFAULT_NAV) {
     if (!ordered.includes(item)) ordered.push(item)
   }
   return ordered
 }
 
-const navItems = ref(initialOrder())
+const topItems = ref(initialTopOrder())
+
+// 当前路由所在的顶层组（不在任何组则为 ''），用作 el-menu :key 触发重挂载自动展开；
+// 详情页等子路由（/admin/posts/:id）exact 不中时按前缀归属顶层项
+const activeGroup = computed(() => {
+  const exact = topLevelKeyOf(route.path)
+  if (exact !== null) return exact
+  if (route.path.startsWith('/admin/')) return '/admin/posts'
+  return ''
+})
 
 function toggleCollapse() {
   collapsed.value = !collapsed.value
@@ -174,17 +250,17 @@ function toggleSort() {
 }
 
 function saveOrder() {
-  localStorage.setItem(ORDER_KEY, JSON.stringify(navItems.value.map((item) => item.index)))
+  localStorage.setItem(ORDER_KEY, JSON.stringify(topItems.value.map((item) => item.key)))
 }
 
-// 拖入目标位置即时换位（el-menu 关闭 router 后点击不会跳转，拖动过程中实时预览顺序）
+// 顶层项拖入目标位置即时换位（el-menu 关闭 router 后点击不会跳转，拖动实时预览）
 function moveTo(i) {
   if (dragFrom.value < 0 || dragFrom.value === i) return
-  const arr = [...navItems.value]
+  const arr = [...topItems.value]
   const [moved] = arr.splice(dragFrom.value, 1)
   arr.splice(i, 0, moved)
   dragFrom.value = i
-  navItems.value = arr
+  topItems.value = arr
   saveOrder()
 }
 
@@ -308,13 +384,20 @@ function handleLogout() {
   border-right: none;
 }
 
-.admin-aside :deep(.el-menu-item.is-sorting) {
+.admin-aside :deep(.el-menu-item.is-sorting),
+.admin-aside :deep(.el-sub-menu.is-sorting > .el-sub-menu__title) {
   cursor: grab;
 }
 
-.admin-aside :deep(.el-menu-item.is-dragging) {
+.admin-aside :deep(.el-menu-item.is-dragging),
+.admin-aside :deep(.el-sub-menu.is-dragging) {
   opacity: 0.45;
   border-top: 1px dashed #409eff;
+}
+
+/* 排序模式：子栏目标题不可点（防拖动误触展开弹层），拖动落点在其 li 上不受影响 */
+.admin-aside :deep(.no-submenu-click .el-sub-menu__title) {
+  pointer-events: none;
 }
 
 .aside-foot {

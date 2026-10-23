@@ -275,6 +275,89 @@ class TestDeletePlaceholder:
         assert client.get("/api/v1/comments/count?slug=nope").status_code == 404
 
 
+class TestPinning:
+    def _roots(self, client, admin, post):
+        _set_config(client, admin, "site_comment_audit", "false")
+        a = _post_comment(client, post_slug=post["slug"], nickname="甲", content="甲楼").json()[
+            "data"
+        ]
+        b = _post_comment(client, post_slug=post["slug"], nickname="乙", content="乙楼").json()[
+            "data"
+        ]
+        return a, b
+
+    def test_pin_orders_first_and_flags(self, client, admin, post):
+        a, b = self._roots(client, admin, post)
+        # 默认时间正序：甲在前
+        items = client.get(f"/api/v1/comments?slug={post['slug']}").json()["data"]["items"]
+        assert [t["comment"]["nickname"] for t in items] == ["甲", "乙"]
+        assert items[0]["comment"]["is_pinned"] is False
+        # 置顶乙 → 乙最前且带标记
+        r = client.post(f"/api/v1/admin/comments/{b['id']}/pin", headers=_auth(admin))
+        assert r.status_code == 200
+        assert r.json()["data"]["is_pinned"] is True
+        items = client.get(f"/api/v1/comments?slug={post['slug']}").json()["data"]["items"]
+        assert [t["comment"]["nickname"] for t in items] == ["乙", "甲"]
+        assert items[0]["comment"]["is_pinned"] is True
+        # 取消置顶 → 回原顺序
+        assert (
+            client.post(f"/api/v1/admin/comments/{b['id']}/unpin", headers=_auth(admin)).status_code
+            == 200
+        )
+        items = client.get(f"/api/v1/comments?slug={post['slug']}").json()["data"]["items"]
+        assert [t["comment"]["nickname"] for t in items] == ["甲", "乙"]
+
+    def test_pin_multiple_orders_by_time_desc(self, client, admin, post):
+        a, b = self._roots(client, admin, post)
+        client.post(f"/api/v1/admin/comments/{a['id']}/pin", headers=_auth(admin))
+        client.post(f"/api/v1/admin/comments/{b['id']}/pin", headers=_auth(admin))
+        items = client.get(f"/api/v1/comments?slug={post['slug']}").json()["data"]["items"]
+        # 后置顶的乙排在先置顶的甲之前
+        assert [t["comment"]["nickname"] for t in items] == ["乙", "甲"]
+
+    def test_pin_reply_422_and_deleted_409(self, client, admin, post):
+        a, _ = self._roots(client, admin, post)
+        rep = _post_comment(
+            client, post_slug=post["slug"], nickname="丙", content="回复", parent_id=a["id"]
+        )
+        rep_id = rep.json()["data"]["id"]
+        assert (
+            client.post(f"/api/v1/admin/comments/{rep_id}/pin", headers=_auth(admin)).status_code
+            == 422
+        )
+        client.delete(f"/api/v1/admin/comments/{a['id']}", headers=_auth(admin))
+        assert (
+            client.post(f"/api/v1/admin/comments/{a['id']}/pin", headers=_auth(admin)).status_code
+            == 409
+        )
+
+    def test_delete_clears_pin(self, client, admin, post):
+        a, _ = self._roots(client, admin, post)
+        client.post(f"/api/v1/admin/comments/{a['id']}/pin", headers=_auth(admin))
+        client.delete(f"/api/v1/admin/comments/{a['id']}", headers=_auth(admin))
+        row = client.get("/api/v1/admin/comments?deleted=true", headers=_auth(admin)).json()[
+            "data"
+        ]["items"][0]
+        assert row["is_pinned"] is False
+
+    def test_reply_any_approved_comment_allowed(self, client, admin, post):
+        # 回复的回复：approved 未删的任意评论都可回复（0.16.1 明确放开）
+        _set_config(client, admin, "site_comment_audit", "false")
+        root = _post_comment(client, post_slug=post["slug"], nickname="楼主").json()["data"]
+        r1 = _post_comment(
+            client, post_slug=post["slug"], nickname="甲", content="一", parent_id=root["id"]
+        )
+        r2 = _post_comment(
+            client,
+            post_slug=post["slug"],
+            nickname="乙",
+            content="二",
+            parent_id=r1.json()["data"]["id"],
+        )
+        assert r2.status_code == 201
+        assert r2.json()["data"]["reply_to_nickname"] == "甲"
+
+
 class TestVisibility:
     def test_hidden_comment_keeps_replies(self, client, admin, post):
         _set_config(client, admin, "site_comment_audit", "false")
@@ -413,3 +496,25 @@ class TestPostIntegration:
             ).status_code
             == 422
         )
+
+
+class TestAdminDetail:
+    def test_list_hides_email_detail_has_it(self, client, admin, post):
+        _set_config(client, admin, "site_comment_audit", "false")
+        c = _post_comment(
+            client, post_slug=post["slug"], nickname="甲", content="内容", email="a@b.com"
+        ).json()["data"]
+        row = client.get("/api/v1/admin/comments", headers=_auth(admin)).json()["data"]["items"][0]
+        assert row["id"] == c["id"]
+        assert "email" not in row  # 列表整页不暴露访客邮箱
+        detail = client.get(f"/api/v1/admin/comments/{c['id']}", headers=_auth(admin)).json()[
+            "data"
+        ]
+        assert detail["email"] == "a@b.com"
+        assert detail["status"] == "approved"
+
+    def test_detail_404(self, client, admin):
+        assert client.get("/api/v1/admin/comments/999999", headers=_auth(admin)).status_code == 404
+
+    def test_detail_requires_auth(self, client):
+        assert client.get("/api/v1/admin/comments/1").status_code in (401, 403)

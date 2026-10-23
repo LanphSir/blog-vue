@@ -31,6 +31,8 @@ class CommentOut(BaseModel):
     created_at: datetime
     # 占位标记（原文已被端点替换为占位文案）；前端据此灰显并禁用回复
     deleted: bool = False
+    # 置顶（仅顶级楼有意义）；前端排序徽标用
+    is_pinned: bool = False
 
     model_config = {"from_attributes": True}
 

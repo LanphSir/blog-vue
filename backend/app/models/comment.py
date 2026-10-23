@@ -31,6 +31,9 @@ class Comment(Base):
     # pending 待审核 / approved 公开 / hidden 后台隐藏（数据完好可随时恢复）
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 置顶只对顶级楼有意义（端点拒绝给回复置顶）；pinned_at 决定多个置顶间先后
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    pinned_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     ip: Mapped[str | None] = mapped_column(String(45), default=None)
     user_agent: Mapped[str | None] = mapped_column(String(300), default=None)
 

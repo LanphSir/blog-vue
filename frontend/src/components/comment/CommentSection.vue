@@ -13,33 +13,36 @@
     <ul v-else class="thread-list">
       <li v-for="thread in threads" :key="thread.comment.id" class="thread">
         <CommentItem :comment="thread.comment" @reply="openReply(thread.comment.id, $event)" />
-        <div class="replies" v-if="thread.replies.length || thread.reply_count > thread.replies.length">
-          <CommentItem
-            v-for="reply in visibleReplies(thread)"
-            :key="reply.id"
-            :comment="reply"
-            :size="32"
-            readonly
-            @reply="openReply(thread.comment.id, $event)"
-          />
-          <button
-            v-if="!isExpanded(thread) && thread.reply_count > thread.replies.length"
-            class="expand-btn"
-            @click="expand(thread)"
-          >
-            查看全部 {{ thread.reply_count }} 条回复
+
+        <div v-if="thread.reply_count > 0" class="reply-area">
+          <button v-if="!isOpen(thread)" class="toggle-btn" @click="toggle(thread)">
+            <el-icon><ArrowDown /></el-icon>
+            {{ thread.reply_count }} 条回复
           </button>
-          <template v-if="isExpanded(thread) && thread._nextPage">
-            <div class="pager">
-              <el-pagination
-                small
-                layout="prev, pager, next"
-                :total="thread._total"
-                :page-size="REPLY_PAGE_SIZE"
-                :current-page="thread._page"
-                @current-change="(p) => loadMore(thread, p)"
+          <template v-else>
+            <div class="replies">
+              <CommentItem
+                v-for="reply in thread._replies || thread.replies"
+                :key="reply.id"
+                :comment="reply"
+                :size="32"
+                @reply="openReply(thread.comment.id, $event)"
               />
+              <div v-if="thread._nextPage" class="pager">
+                <el-pagination
+                  small
+                  layout="prev, pager, next"
+                  :total="thread._total"
+                  :page-size="REPLY_PAGE_SIZE"
+                :current-page="thread._page"
+                  @current-change="(p) => loadMore(thread, p)"
+                />
+              </div>
             </div>
+            <button class="toggle-btn collapse" @click="toggle(thread)">
+              <el-icon><ArrowUp /></el-icon>
+              收起回复
+            </button>
           </template>
         </div>
 
@@ -48,7 +51,7 @@
             compact
             :post-slug="slug"
             :parent-id="replyTarget[thread.comment.id].id"
-            :placeholder="`回复 @${replyTarget[thread.comment.id].nickname}：`"
+            :placeholder="`回复 @${replyTarget[thread.comment.id].nickname}（支持 Markdown）：`"
             submit-text="回复"
             @created="onReplyCreated(thread.comment.id)"
             @cancel="replyTarget[thread.comment.id] = null"
@@ -70,12 +73,13 @@
 </template>
 
 <script setup>
-// 文章评论区：顶级线程分页 + 楼内「查看全部回复」按楼展开分页；发表/回复成功
-// 后刷新当前页。threads 上的 _page/_total/_nextPage 是展开态私有字段（下划线
-// 约定）；回复列表走 /comments/{root}/replies 接口。
+// 文章评论区：顶级线程分页（置顶楼由后端排最前）+ 楼内回复区「默认折叠、点开才列」，
+// 展开时若超过预载条数走 /comments/{root}/replies 分页拉取；任何评论（含楼内回复）
+// 都可回复，新回复仍归同一楼层平铺。回复成功后自动展开该楼。openIds 是纯前端
+// 展开态（下划线字段是线程上的私有渲染态），刷新页面回到默认折叠。
 import { onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ChatDotSquare } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, ChatDotSquare } from '@element-plus/icons-vue'
 import { getCommentCount, getCommentReplies, getCommentThreads } from '@/api/comments'
 import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
@@ -94,8 +98,8 @@ const page = ref(1)
 const loading = ref(false)
 // 楼 id -> {id, nickname} 当前正在回复的评论
 const replyTarget = reactive({})
-// 楼 id -> 展开后的全部回复
-const expanded = reactive({})
+// 楼 id -> true：回复区已展开（默认不在其中 = 折叠）
+const openIds = reactive({})
 
 async function refreshCount() {
   try {
@@ -110,54 +114,70 @@ async function loadThreads(p = 1) {
   loading.value = true
   try {
     const res = await getCommentThreads({ slug: props.slug, page: p, page_size: PAGE_SIZE })
-    threads.value = res.data.items.map((t) => ({ ...t, _page: 1, _total: 0, _nextPage: false }))
+    threads.value = res.data.items.map((t) => ({ ...t, _replies: null, _page: 1, _total: 0, _nextPage: false }))
     total.value = res.data.total
     page.value = p
     Object.keys(replyTarget).forEach((k) => delete replyTarget[k])
-    Object.keys(expanded).forEach((k) => delete expanded[k])
+    // 展开态跨刷新保留：重拉后同步各展开楼的数据
+    threads.value.forEach((t) => {
+      if (openIds[t.comment.id]) fillReplies(t)
+    })
     refreshCount()
   } finally {
     loading.value = false
   }
 }
 
-function isExpanded(thread) {
-  return expanded[thread.comment.id] !== undefined
+function isOpen(thread) {
+  return !!openIds[thread.comment.id]
 }
 
-function visibleReplies(thread) {
-  return isExpanded(thread) ? expanded[thread.comment.id] : thread.replies
+async function toggle(thread) {
+  const id = thread.comment.id
+  if (openIds[id]) {
+    delete openIds[id]
+    return
+  }
+  openIds[id] = true
+  await fillReplies(thread)
 }
 
-async function expand(thread) {
-  const res = await getCommentReplies(thread.comment.id, { page: 1, page_size: REPLY_PAGE_SIZE })
-  expanded[thread.comment.id] = res.data.items
-  thread._total = res.data.total
-  thread._page = 1
-  thread._nextPage = total_pages(res.data) > 1
-}
-
-function total_pages(data) {
-  return Math.max(1, Math.ceil(data.total / data.page_size))
+// 展开时填充回复：预载已含全部回复就不必再请求，否则拉第一页（分页）
+async function fillReplies(thread) {
+  const id = thread.comment.id
+  if (thread.replies.length >= thread.reply_count) {
+    thread._replies = thread.replies
+    thread._total = thread.reply_count
+    thread._page = 1
+    thread._nextPage = false
+    return
+  }
+  const res = await getCommentReplies(id, { page: 1, page_size: REPLY_PAGE_SIZE })
+  // 请求期间线程列表可能已重拉（对象被替换），仅在楼仍展开时写回
+  if (openIds[id]) {
+    thread._replies = res.data.items
+    thread._total = res.data.total
+    thread._page = 1
+    thread._nextPage = Math.max(1, Math.ceil(res.data.total / res.data.page_size)) > 1
+  }
 }
 
 async function loadMore(thread, p) {
   const res = await getCommentReplies(thread.comment.id, { page: p, page_size: REPLY_PAGE_SIZE })
   thread._page = p
-  const merged = [...expanded[thread.comment.id]]
+  const merged = [...(thread._replies || thread.replies)]
   merged.splice((p - 1) * REPLY_PAGE_SIZE, res.data.items.length, ...res.data.items)
-  expanded[thread.comment.id] = merged
+  thread._replies = merged
 }
 
+// rootId = 所在楼层（回复表单永远挂在楼下），comment = 被回复的那条（可以是楼或楼内回复）
 function openReply(rootId, comment) {
   replyTarget[rootId] = { id: comment.id, nickname: comment.nickname }
 }
 
-function refreshThread(rootId) {
-  // 新评论可能插入分页：重拉当前线程页；该楼若已展开则同步重拉回复
-  const thread = threads.value.find((t) => t.comment.id === rootId)
-  if (thread && expanded[rootId] !== undefined) expand(thread)
-  loadThreads(page.value)
+async function refreshThread(rootId, forceOpen = false) {
+  if (forceOpen) openIds[rootId] = true
+  await loadThreads(page.value)
 }
 
 function onCreated() {
@@ -168,7 +188,8 @@ function onCreated() {
 function onReplyCreated(rootId) {
   ElMessage.success('回复成功，若博主开启了评论审核将通过后显示')
   delete replyTarget[rootId]
-  refreshThread(rootId)
+  // 自动展开该楼，让回复者立刻看到自己的回复
+  refreshThread(rootId, true)
 }
 
 watch(() => props.slug, (s) => s && loadThreads(1))
@@ -203,16 +224,24 @@ onMounted(() => loadThreads(1))
   flex-direction: column;
   gap: 12px;
 }
-.replies {
+.reply-area {
   margin-left: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.replies {
   display: flex;
   flex-direction: column;
   gap: 14px;
   border-left: 2px solid var(--blog-border);
   padding-left: 14px;
 }
-.expand-btn {
+.toggle-btn {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: none;
   border: none;
   color: var(--blog-primary);
@@ -220,7 +249,7 @@ onMounted(() => loadThreads(1))
   cursor: pointer;
   padding: 0;
 }
-.expand-btn:hover {
+.toggle-btn:hover {
   text-decoration: underline;
 }
 .reply-form {
@@ -232,4 +261,5 @@ onMounted(() => loadThreads(1))
 }
 .top-pager {
   margin-top: 22px;
-}</style>
+}
+</style>

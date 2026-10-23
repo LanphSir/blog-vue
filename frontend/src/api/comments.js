@@ -8,8 +8,11 @@ export const getCommentReplies = (id, params) => request.get(`/comments/${id}/re
 export const createComment = (data) => request.post('/comments', data)
 
 export const adminGetComments = (params) => request.get('/admin/comments', { params })
+export const adminGetCommentDetail = (id) => request.get(`/admin/comments/${id}`)
 export const adminApproveComment = (id) => request.post(`/admin/comments/${id}/approve`)
 export const adminHideComment = (id) => request.post(`/admin/comments/${id}/hide`)
 export const adminDeleteComment = (id) => request.delete(`/admin/comments/${id}`)
 export const adminRestoreComment = (id) => request.post(`/admin/comments/${id}/restore`)
+export const adminPinComment = (id) => request.post(`/admin/comments/${id}/pin`)
+export const adminUnpinComment = (id) => request.post(`/admin/comments/${id}/unpin`)
 export const adminPendingCommentCount = () => request.get('/admin/comments/pending-count')

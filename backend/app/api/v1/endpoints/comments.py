@@ -7,6 +7,8 @@ status。公开序列化一律走 crud.comment_to_out，被删占位与隐私字
 任意 →delete→ is_deleted；deleted →restore→ 回到原 status（approved）。
 """
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy import select
 
@@ -174,7 +176,13 @@ async def admin_list_comments(
     for item in items:
         item.post_title = titles.get(item.post_id)
         item.post_slug = slugs.get(item.post_id)
-    return ok(PageData(items=items, total=total, page=page, page_size=page_size))
+    # 列表整页不带 email/user_agent（访客联系方式没必要全表暴露）；需要时走单条详情
+    from app.schemas.comment import CommentAdminOut
+
+    admin_items = [
+        CommentAdminOut.model_validate(c).model_dump(exclude={"email", "user_agent"}) for c in items
+    ]
+    return ok(PageData(items=admin_items, total=total, page=page, page_size=page_size))
 
 
 @router.get("/admin/comments/pending-count", summary="待审评论数（管理）")
@@ -221,8 +229,48 @@ async def admin_hide(comment_id: int, db: DbDep, _: CurrentUser) -> ApiResponse:
 async def admin_delete(comment_id: int, db: DbDep, _: CurrentUser) -> ApiResponse[None]:
     comment = await _get_admin_comment(db, comment_id)
     comment.is_deleted = True
+    comment.is_pinned = False
+    comment.pinned_at = None
     await db.commit()
     return ok(None)
+
+
+@router.post("/admin/comments/{comment_id}/pin", summary="置顶评论（管理）")
+async def admin_pin(comment_id: int, db: DbDep, _: CurrentUser) -> ApiResponse:
+    comment = await _get_admin_comment(db, comment_id)
+    if comment.parent_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="只有顶级评论可以置顶"
+        )
+    if comment.is_deleted:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="已删除的评论请先恢复")
+    comment.is_pinned = True
+    comment.pinned_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(comment)
+    return ok(_admin_out(comment))
+
+
+@router.post("/admin/comments/{comment_id}/unpin", summary="取消置顶（管理）")
+async def admin_unpin(comment_id: int, db: DbDep, _: CurrentUser) -> ApiResponse:
+    comment = await _get_admin_comment(db, comment_id)
+    comment.is_pinned = False
+    comment.pinned_at = None
+    await db.commit()
+    await db.refresh(comment)
+    return ok(_admin_out(comment))
+
+
+@router.get("/admin/comments/{comment_id}", summary="评论详情（管理，含邮箱/IP）")
+async def admin_comment_detail(comment_id: int, db: DbDep, _: CurrentUser) -> ApiResponse:
+    # 列表接口不带 email/user_agent（避免整页暴露访客联系方式）；单条详情按需查看
+    comment = await _get_admin_comment(db, comment_id)
+    posts = await db.execute(select(Post.title, Post.slug).where(Post.id == comment.post_id))
+    row = posts.first()
+    out = _admin_out(comment)
+    if row is not None:
+        out.post_title, out.post_slug = row
+    return ok(out)
 
 
 @router.post("/admin/comments/{comment_id}/restore", summary="恢复评论（管理）")

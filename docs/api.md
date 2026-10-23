@@ -24,7 +24,7 @@
 | GET | `/social-links` | 社交链接{id, platform, label, url, sort_order}（仅 visible，按排序） |
 | GET | `/notices` | 启用公告列表（banner/dialog 含 content；page 的 content 为 null） |
 | GET | `/notices/{id}` | 公告详情（含 content；已停用返回 404） |
-| GET | `/comments?slug=&page=&page_size=` | 评论线程（公开）：顶级评论分页，每项内嵌前 3 条回复 + `reply_count`；仅 approved 未删，被删楼有存活回复时以 `content="该评论已被删除"`、`deleted=true` 占位 |
+| GET | `/comments?slug=&page=&page_size=` | 评论线程（公开）：顶级评论分页（置顶楼最前，多个置顶按置顶时间新→旧），每项内嵌前 3 条回复 + `reply_count`；仅 approved 未删，被删楼有存活回复时以 `content="该评论已被删除"`、`deleted=true` 占位 |
 | GET | `/comments/count?slug=` | 评论总数（公开；口径=approved 未删含回复；文章关评论返回 0） |
 | GET | `/comments/{id}/replies?page=&page_size=` | 楼中全部回复分页（公开） |
 | POST | `/comments` | 发表评论/回复（公开）：`{post_slug, content, nickname, email?, parent_id?, captcha_id, captcha_code}`；captcha_id 非空才校验验证码；IP 限流 30s/条、20/天（超限 429）；审核开关 `site_comment_audit` 决定初始 status |
@@ -89,11 +89,14 @@
 | POST | `/admin/notices` | 创建公告（type: banner/dialog/page） |
 | PUT | `/admin/notices/{id}` | 更新公告（title/content 变化自动 version+1） |
 | DELETE | `/admin/notices/{id}` | 删除公告 |
-| GET | `/admin/comments` | 评论管理列表（`status`/`post_id`/`keyword` 筛选，`deleted=true` 回收站；返回 post_title/post_slug 便于跳转） |
+| GET | `/admin/comments` | 评论管理列表（`status`/`post_id`/`keyword` 筛选，`deleted=true` 回收站；返回 post_title/post_slug 便于跳转；不含 email/user_agent，需要时看单条详情） |
+| GET | `/admin/comments/{id}` | 评论详情（管理；含 email/ip/user_agent 完整信息） |
 | GET | `/admin/comments/pending-count` | 待审评论数（侧栏红点） |
 | POST | `/admin/comments/{id}/approve` | 通过（pending/hidden → approved；已删 409） |
 | POST | `/admin/comments/{id}/hide` | 隐藏（→ hidden，数据保留可恢复；已删 409） |
-| DELETE | `/admin/comments/{id}` | 删除=软删 is_deleted（前台若有存活回复显示占位） |
+| DELETE | `/admin/comments/{id}` | 删除=软删 is_deleted（同时清除置顶；前台若有存活回复显示占位） |
+| POST | `/admin/comments/{id}/pin` | 置顶（仅顶级评论，回复 422、已删 409；记录 pinned_at） |
+| POST | `/admin/comments/{id}/unpin` | 取消置顶 |
 | POST | `/admin/comments/{id}/restore` | 从回收站恢复（回原 status） |
 
 > 配置键白名单校验：`PUT /admin/site/config` 对 `site_accent_color`（#RGB/#RRGGBB）、`sidebar_tag_count`（1-30）校验，任一非法整批 422 且不写入；未知键放行。
